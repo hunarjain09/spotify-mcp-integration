@@ -1,0 +1,4 @@
+# file: /home/user/spotify-mcp-integration/activities/fuzzy_matcher.py
+# hypothesis_version: 6.148.1
+
+[0.0, 0.15, 0.35, 0.5, 1.0, 100.0, 'album_name', 'album_score', 'all_scores', 'artist_name', 'artist_score', 'confidence', 'fuzzy', 'fuzzy-match', 'is_match', 'isrc', 'isrc_match', 'match_method', 'matched_track', 'none', 'score', 'spotify_uri', 'title_score', 'track', 'track_id', 'track_name']

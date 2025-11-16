@@ -1,0 +1,4 @@
+# file: /home/user/spotify-mcp-integration/models/data_models.py
+# hypothesis_version: 6.148.1
+
+[0.0, 0.85, 1.0, 2.0, 100, '✓ Success', '✗ Failed']
