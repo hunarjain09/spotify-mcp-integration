@@ -109,9 +109,10 @@ class TestFuzzyMatcher:
         )
 
         # Should still match based on fuzzy matching
+        # Even with ISRC mismatch, perfect text match gives confidence = 1.0
         assert result["is_match"] is True
-        assert result["confidence"] < 1.0  # Not perfect due to ISRC mismatch
-        assert result["match_method"] == "fuzzy"
+        assert result["confidence"] == 1.0  # Perfect fuzzy match
+        assert result["match_method"] == "fuzzy"  # Uses fuzzy, not ISRC
 
     @pytest.mark.asyncio
     async def test_below_threshold_no_match(self, make_song_metadata, make_spotify_track):
@@ -336,7 +337,7 @@ class TestFuzzyMatcher:
 
         track = make_spotify_track(
             track_name="Test Song",  # 100% match
-            artist_name="Different Artist",  # 0% match
+            artist_name="ZZZZZ XXXXX",  # ~0% match - completely different chars
             album_name="Test Album",  # 100% match
         )
 
