@@ -8,6 +8,7 @@ then accepts the callback URL to complete authentication.
 import os
 import json
 import sys
+import time
 from urllib.parse import urlencode, urlparse, parse_qs
 import requests
 from dotenv import load_dotenv
@@ -94,6 +95,10 @@ try:
     response = requests.post(token_url, data=token_data)
     response.raise_for_status()
     token_info = response.json()
+
+    # Add expires_at timestamp (required by spotipy)
+    if "expires_in" in token_info:
+        token_info["expires_at"] = int(time.time()) + token_info["expires_in"]
 
     print("✓ Access token received")
 
