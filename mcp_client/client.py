@@ -2,6 +2,7 @@
 
 import json
 import asyncio
+import os
 from typing import Dict, Any, Optional
 from pathlib import Path
 
@@ -21,13 +22,15 @@ class SpotifyMCPClient:
         self.session: Optional[ClientSession] = None
         self.read_stream = None
         self.write_stream = None
+        self._stdio_context = None
 
         if server_script_path is None:
             # Default to mcp_server/spotify_server.py
             server_script_path = Path(__file__).parent.parent / "mcp_server" / "spotify_server.py"
 
+        # Pass current environment to subprocess so it can access .env variables
         self.server_params = StdioServerParameters(
-            command="python", args=[str(server_script_path)], env=None
+            command="python", args=[str(server_script_path)], env=dict(os.environ)
         )
 
     async def connect(self):
@@ -35,7 +38,9 @@ class SpotifyMCPClient:
         if self.session is not None:
             raise RuntimeError("Client is already connected")
 
-        self.read_stream, self.write_stream = await stdio_client(self.server_params)
+        # stdio_client is an async context manager
+        self._stdio_context = stdio_client(self.server_params)
+        self.read_stream, self.write_stream = await self._stdio_context.__aenter__()
         self.session = ClientSession(self.read_stream, self.write_stream)
 
         await self.session.initialize()
@@ -152,6 +157,11 @@ class SpotifyMCPClient:
         if self.session is not None:
             await self.session.close()
             self.session = None
+
+        # Exit the stdio context manager
+        if hasattr(self, '_stdio_context') and self._stdio_context is not None:
+            await self._stdio_context.__aexit__(None, None, None)
+            self._stdio_context = None
 
     async def __aenter__(self):
         """Async context manager entry."""
