@@ -9,8 +9,10 @@ Seamlessly sync songs from Apple Music to Spotify playlists using iOS Shortcuts.
 - **Fire-and-forget** architecture for instant response
 - **Automatic retries** with exponential backoff
 - **Real-time progress tracking** via REST API
-- **Production-ready** with Temporal workflow orchestration
+- **Dual execution modes**: Temporal (durable, production-ready) or Standalone (simple, no infrastructure)
+- **Production-ready** with optional Temporal workflow orchestration
 - **ISRC matching** for exact track identification when available
+- **Swappable AI providers**: Choose between Claude SDK or Langchain/OpenAI
 
 ## Architecture
 
@@ -48,24 +50,72 @@ graph LR
 
 - **📱 iOS Shortcuts** - User interface for one-tap syncing from Apple Music
 - **🚀 FastAPI Server** - HTTP endpoints for sync requests and status queries
-- **⚡ Temporal Server** - Durable workflow orchestration engine
-- **🔄 Temporal Worker** - Executes workflow and activity code
+- **⚡ Temporal Server** - (Optional) Durable workflow orchestration engine
+- **🔄 Temporal Worker** - (Optional) Executes workflow and activity code
 - **🎯 Activities** - Search, fuzzy matching, AI disambiguation, playlist management
 - **🎵 MCP Server** - Spotify API wrapper using Model Context Protocol
 - **🤖 AI Agent** - Swappable AI providers (Langchain/OpenAI or Claude SDK/Anthropic) for disambiguation
+
+## Execution Modes
+
+This system supports two execution modes:
+
+### 🏢 Temporal Mode (`USE_TEMPORAL=true`)
+**Best for:** Production, high reliability, distributed processing
+
+✅ Durable execution (survives server restarts)
+✅ Advanced retry policies with exponential backoff
+✅ Distributed processing across multiple workers
+✅ Real-time progress tracking and workflow history
+❌ Requires Temporal infrastructure (docker-compose)
+❌ More complex deployment
+
+**Quick Start:**
+```bash
+USE_TEMPORAL=true
+docker-compose up -d          # Start Temporal
+python workers/music_sync_worker.py &  # Start worker
+uvicorn api.app:app --port 8000        # Start API
+```
+
+### ⚡ Standalone Mode (`USE_TEMPORAL=false`)
+**Best for:** Development, testing, simple deployments, low traffic
+
+✅ Simple deployment - just FastAPI + Spotify
+✅ No infrastructure needed
+✅ Lower resource usage
+✅ Faster development iteration
+❌ No durability (in-memory state only)
+❌ Basic retry logic
+❌ Single-server only
+
+**Quick Start:**
+```bash
+USE_TEMPORAL=false
+uvicorn api.app:app --port 8000  # That's it!
+```
+
+**📖 [View Detailed Execution Modes Comparison](./docs/EXECUTION_MODES.md)** - Includes:
+- Complete feature comparison matrix
+- Cost analysis
+- Migration guide
+- Use case recommendations
 
 ## Quick Start
 
 ### Prerequisites
 
+**Core Requirements:**
 - Python 3.11+
 - [UV](https://docs.astral.sh/uv/) (recommended) or pip for package management
-- Docker & Docker Compose (for local Temporal)
 - Spotify Developer Account
-- **AI Provider** (for AI disambiguation):
+- **AI Provider** (optional, for AI disambiguation):
   - OpenAI API Key (if using Langchain provider), OR
   - Anthropic API Key (if using Claude SDK provider)
 - iPhone with iOS Shortcuts app
+
+**Additional for Temporal Mode:**
+- Docker & Docker Compose (for local Temporal server)
 
 **Installing UV (recommended):**
 ```bash
@@ -106,6 +156,10 @@ cp .env.example .env
 Edit `.env` and add your credentials:
 
 ```env
+# Execution Mode - Choose "true" (Temporal) or "false" (Standalone)
+# For first-time setup, use "false" for simplicity
+USE_TEMPORAL=false
+
 # Spotify (get from https://developer.spotify.com/dashboard)
 SPOTIFY_CLIENT_ID=your_client_id_here
 SPOTIFY_CLIENT_SECRET=your_client_secret_here
@@ -133,9 +187,18 @@ ANTHROPIC_API_KEY=your_anthropic_key_here
 - Open Spotify, right-click a playlist → Share → Copy link
 - Extract ID from URL: `spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M` → `37i9dQZF1DXcBWIGoYBM5M`
 
-### 3. Start Temporal (Local)
+### 3. Start Infrastructure
+
+#### Option A: Standalone Mode (Recommended for First Time)
+
+No additional infrastructure needed! Skip to step 4.
+
+#### Option B: Temporal Mode (For Production)
+
+Start Temporal and related services:
 
 ```bash
+# Set USE_TEMPORAL=true in .env first
 docker-compose up -d
 ```
 
@@ -164,9 +227,11 @@ This will:
 2. Create a `.cache-spotify` file with your token
 3. Exit after successful auth (Ctrl+C)
 
-### 5. Start the Worker
+### 5. Start the Worker (Temporal Mode Only)
 
-In a new terminal:
+**Skip this step if using Standalone Mode!**
+
+If using Temporal mode, start the worker in a new terminal:
 
 ```bash
 # With UV
@@ -185,7 +250,7 @@ Starting worker on task queue 'music-sync-queue'...
 
 ### 6. Start the API Server
 
-In another terminal:
+Start the API server:
 
 ```bash
 # With UV
@@ -194,6 +259,12 @@ uv run uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
 # Or activate the virtual environment first
 source .venv/bin/activate
 python -m uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+You should see:
+```
+Execution mode: STANDALONE  # or TEMPORAL if USE_TEMPORAL=true
+✓ Running in standalone mode (no Temporal required)
 ```
 
 Access the API docs at: http://localhost:8000/docs
@@ -387,28 +458,33 @@ uv run uvicorn api.app:app --log-level info
 
 ```
 spotify-mcp-integration/
-├── api/                    # FastAPI server
+├── api/                    # FastAPI server (dual-mode support)
 │   ├── app.py             # Main API application
 │   └── models.py          # Request/response models
-├── workflows/             # Temporal workflows
+├── workflows/             # Temporal workflows (Temporal mode)
 │   └── music_sync_workflow.py
-├── activities/            # Temporal activities
+├── activities/            # Temporal activities (used by both modes)
 │   ├── spotify_search.py
 │   ├── fuzzy_matcher.py
-│   ├── ai_disambiguator.py
+│   ├── ai_disambiguator.py  # Claude SDK + Langchain integration
 │   └── playlist_manager.py
+├── executors/             # Standalone executors (Standalone mode)
+│   ├── __init__.py
+│   └── standalone_executor.py  # Non-Temporal workflow execution
 ├── mcp_server/            # MCP Spotify server
 │   └── spotify_server.py
 ├── mcp_client/            # MCP client wrapper
 │   └── client.py
-├── workers/               # Temporal workers
+├── workers/               # Temporal workers (Temporal mode only)
 │   └── music_sync_worker.py
 ├── models/                # Data models
 │   └── data_models.py
 ├── config/                # Configuration
-│   └── settings.py
+│   └── settings.py        # Includes USE_TEMPORAL flag
+├── docs/                  # Documentation
+│   └── EXECUTION_MODES.md # Detailed mode comparison
 ├── tests/                 # Test suite
-├── docker-compose.yml     # Local Temporal setup
+├── docker-compose.yml     # Local Temporal setup (optional)
 ├── requirements.txt       # Python dependencies
 └── .env.example          # Environment template
 ```
