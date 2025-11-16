@@ -57,11 +57,23 @@ async def create_temporal_client() -> Client:
 async def run_worker():
     """Run the Temporal worker.
 
+    Validates AI configuration before starting if AI disambiguation is enabled.
+
     This worker:
     - Registers workflows and activities
     - Polls task queues for work
     - Executes workflow and activity code
     """
+    # Validate AI configuration if AI disambiguation is enabled
+    if settings.use_ai_disambiguation:
+        try:
+            settings.validate_ai_config()
+            logger.info(f"✓ AI configuration validated (provider: {settings.ai_provider})")
+        except ValueError as e:
+            logger.error(f"✗ AI configuration error: {e}")
+            logger.error("Set USE_AI_DISAMBIGUATION=false in .env to disable AI features")
+            raise
+
     # Create Temporal client
     client = await create_temporal_client()
 

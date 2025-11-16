@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     api_port: int = 8000
     api_workers: int = 4
 
+    # CORS Configuration
+    # For development: Use "*" to allow all origins (default)
+    # For production: Specify comma-separated list of allowed origins
+    # Example: "https://yourdomain.com,https://app.yourdomain.com"
+    # Security: Restricting origins prevents CSRF attacks
+    cors_allowed_origins: str = "*"
+
     # Matching Configuration
     fuzzy_match_threshold: float = 0.85
     use_ai_disambiguation: bool = True
@@ -69,6 +76,18 @@ class Settings(BaseSettings):
     )
 
     @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse CORS allowed origins into a list.
+
+        Returns:
+            List of allowed origin strings. If "*" is present, returns ["*"].
+        """
+        if self.cors_allowed_origins == "*":
+            return ["*"]
+        # Split by comma and strip whitespace
+        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
+
+    @property
     def is_temporal_cloud(self) -> bool:
         """Check if using Temporal Cloud."""
         return "tmprl.cloud" in self.temporal_host
@@ -84,7 +103,11 @@ class Settings(BaseSettings):
         return None
 
     def validate_ai_config(self) -> None:
-        """Validate that required AI API keys are present based on provider."""
+        """Validate that required AI API keys are present based on provider.
+
+        Note: This should be called at application startup, not at module import time,
+        to allow importing settings for tests, CLI tools, and other non-AI use cases.
+        """
         if self.use_ai_disambiguation:
             if self.ai_provider == "langchain" and not self.openai_api_key:
                 raise ValueError(
@@ -99,6 +122,6 @@ class Settings(BaseSettings):
 # Global settings instance
 settings = Settings()
 
-# Validate AI configuration on load
-if settings.use_ai_disambiguation:
-    settings.validate_ai_config()
+# NOTE: AI config validation is now done at startup time, not module import time.
+# This prevents crashes when importing settings for non-AI use cases (e.g., tests, CLI tools).
+# Applications should call settings.validate_ai_config() during initialization if AI is needed.

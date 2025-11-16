@@ -23,7 +23,7 @@ between modes without client-side changes.
 import asyncio
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING, Any
 import uuid
 
@@ -75,10 +75,13 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Add CORS middleware for iOS Shortcuts
+# Add CORS middleware
+# Security: CORS origins can be configured via CORS_ALLOWED_ORIGINS environment variable
+# For development: Use "*" (default)
+# For production: Specify comma-separated list of allowed origins to prevent CSRF attacks
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for iOS
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,6 +92,16 @@ app.add_middleware(
 temporal_client: Optional[Any] = None
 
 
+# TODO: Migrate to lifespan context manager (FastAPI 0.93+)
+# The @app.on_event decorators are deprecated but still functional.
+# Future refactoring should use:
+#   from contextlib import asynccontextmanager
+#   @asynccontextmanager
+#   async def lifespan(app: FastAPI):
+#       # startup code
+#       yield
+#       # shutdown code
+#   app = FastAPI(lifespan=lifespan)
 @app.on_event("startup")
 async def startup_event():
     """
@@ -102,6 +115,16 @@ async def startup_event():
 
     logger.info("Starting FastAPI server...")
     logger.info(f"Execution mode: {'TEMPORAL' if settings.use_temporal else 'STANDALONE'}")
+
+    # Validate AI configuration if AI disambiguation is enabled
+    if settings.use_ai_disambiguation:
+        try:
+            settings.validate_ai_config()
+            logger.info(f"✓ AI configuration validated (provider: {settings.ai_provider})")
+        except ValueError as e:
+            logger.error(f"✗ AI configuration error: {e}")
+            logger.error("Set USE_AI_DISAMBIGUATION=false in .env to disable AI features")
+            raise
 
     if settings.use_temporal:
         # TEMPORAL MODE: Connect to Temporal server
@@ -485,7 +508,7 @@ async def health_check() -> HealthCheckResponse:
 
     return HealthCheckResponse(
         status="healthy" if is_healthy else "unhealthy",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         temporal_connected=temporal_client is not None if settings.use_temporal else False,
         version="1.0.0",
     )
@@ -501,7 +524,7 @@ async def global_exception_handler(request, exc):
             "error": "InternalServerError",
             "message": "An unexpected error occurred",
             "detail": str(exc) if settings.log_level == "DEBUG" else None,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     )
 
