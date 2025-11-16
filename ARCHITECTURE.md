@@ -4,18 +4,67 @@ This document provides detailed architectural diagrams and explanations of the S
 
 ## Table of Contents
 
-1. [System Architecture](#system-architecture)
-2. [Sync Workflow Sequence](#sync-workflow-sequence)
-3. [Component Interactions](#component-interactions)
-4. [Data Flow](#data-flow)
-5. [Activity Execution Flow](#activity-execution-flow)
-6. [Deployment Architecture](#deployment-architecture)
+1. [Execution Modes Overview](#execution-modes-overview)
+2. [System Architecture (Temporal Mode)](#system-architecture-temporal-mode)
+3. [System Architecture (Standalone Mode)](#system-architecture-standalone-mode)
+4. [Sync Workflow Sequence](#sync-workflow-sequence)
+5. [Component Interactions](#component-interactions)
+6. [Data Flow](#data-flow)
+7. [Activity Execution Flow](#activity-execution-flow)
+8. [Deployment Architecture](#deployment-architecture)
 
 ---
 
-## System Architecture
+## Execution Modes Overview
 
-High-level overview of the system components and their relationships.
+The system supports **two execution modes** controlled by the `USE_TEMPORAL` environment variable:
+
+### 🏢 Temporal Mode (`USE_TEMPORAL=true`)
+
+**Architecture**: Distributed, durable workflow orchestration
+**Best for**: Production, high reliability, distributed processing
+
+**Key Components**:
+- Temporal Server (workflow orchestration engine)
+- PostgreSQL (state persistence)
+- Temporal Worker (executes workflows & activities)
+- FastAPI Server (HTTP endpoints)
+- MCP Client/Server (Spotify integration)
+
+**Features**:
+- ✅ Durable execution (survives server restarts)
+- ✅ Advanced retry policies with exponential backoff
+- ✅ Distributed processing across multiple workers
+- ✅ Real-time progress tracking via queries
+- ✅ Complete workflow history and replay
+- ✅ Automatic state management
+
+### ⚡ Standalone Mode (`USE_TEMPORAL=false`)
+
+**Architecture**: Direct, synchronous execution
+**Best for**: Development, testing, simple deployments
+
+**Key Components**:
+- FastAPI Server (HTTP endpoints + workflow execution)
+- MCP Client/Server (Spotify integration)
+- In-memory state storage
+
+**Features**:
+- ✅ Simple deployment (no infrastructure)
+- ✅ Lower resource usage
+- ✅ Faster startup time
+- ✅ Identical API endpoints
+- ⚠️ In-memory state only (lost on restart)
+- ⚠️ Basic retry logic
+- ⚠️ Single-server execution
+
+**📖 For detailed comparison, see [docs/EXECUTION_MODES.md](./docs/EXECUTION_MODES.md)**
+
+---
+
+## System Architecture (Temporal Mode)
+
+High-level overview when `USE_TEMPORAL=true` (production mode).
 
 ```mermaid
 graph TB
@@ -105,9 +154,91 @@ graph TB
 
 ---
 
+## System Architecture (Standalone Mode)
+
+Simplified architecture when `USE_TEMPORAL=false` (development/simple deployments).
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        iOS[iOS Shortcuts App]
+        User[User]
+    end
+
+    subgraph "API Layer"
+        FastAPI[FastAPI Server<br/>Port 8000<br/>+ Workflow Executor]
+        Health[/api/v1/health]
+        Sync[/api/v1/sync]
+        Status[/api/v1/sync/:id]
+    end
+
+    subgraph "Execution Layer"
+        Executor[Standalone Executor<br/>In-Memory State]
+        Search[Search Function]
+        Fuzzy[Fuzzy Match Function]
+        AI[AI Disambiguate Function]
+        Playlist[Playlist Function]
+    end
+
+    subgraph "Integration Layer"
+        MCP[MCP Client]
+        MCPServer[MCP Spotify Server]
+    end
+
+    subgraph "External Services"
+        SpotifyAPI[Spotify Web API]
+        OpenAI[OpenAI API / GPT-4]
+        Claude[Anthropic Claude API]
+    end
+
+    User -->|Share Song| iOS
+    iOS -->|HTTP POST| FastAPI
+    FastAPI -->|Execute Directly| Executor
+
+    Executor -->|1. Search| Search
+    Executor -->|2. Match| Fuzzy
+    Executor -->|3. Disambiguate| AI
+    Executor -->|4. Add to Playlist| Playlist
+
+    Search -->|Call Tool| MCP
+    AI -->|Call Tool| MCP
+    Playlist -->|Call Tool| MCP
+
+    MCP -->|MCP Protocol| MCPServer
+    MCPServer -->|HTTPS| SpotifyAPI
+
+    AI -.->|Provider: langchain| OpenAI
+    AI -.->|Provider: claude| Claude
+
+    iOS -.->|Poll Status| Status
+    FastAPI -.->|Query State| Executor
+
+    classDef client fill:#e1f5ff,stroke:#01579b
+    classDef api fill:#fff3e0,stroke:#e65100
+    classDef executor fill:#e8f5e9,stroke:#1b5e20
+    classDef integration fill:#fff9c4,stroke:#f57f17
+    classDef external fill:#fce4ec,stroke:#880e4f
+
+    class iOS,User client
+    class FastAPI,Health,Sync,Status api
+    class Executor,Search,Fuzzy,AI,Playlist executor
+    class MCP,MCPServer integration
+    class SpotifyAPI,OpenAI,Claude external
+```
+
+**Key Differences from Temporal Mode:**
+- ❌ No Temporal Server (no workflow orchestration)
+- ❌ No PostgreSQL (no persistent state storage)
+- ❌ No Worker process (execution happens in FastAPI)
+- ✅ Simpler deployment (2 components vs 5+)
+- ✅ Lower resource usage
+- ⚠️ State stored in-memory (lost on restart)
+
+---
+
 ## Sync Workflow Sequence
 
-Detailed sequence diagram showing the complete flow of a song sync request.
+Detailed sequence diagram showing the complete flow of a song sync request (Temporal Mode).
 
 ```mermaid
 sequenceDiagram
@@ -570,7 +701,9 @@ stateDiagram-v2
 
 ## Deployment Architecture
 
-Production deployment setup with Docker containers.
+### Temporal Mode Deployment (Production)
+
+Production deployment setup with distributed Temporal infrastructure.
 
 ```mermaid
 graph TB
@@ -669,56 +802,136 @@ graph TB
     class Prometheus,Grafana,Logs monitoring
 ```
 
+### Standalone Mode Deployment (Simplified)
+
+Lightweight deployment without Temporal infrastructure.
+
+```mermaid
+graph TB
+    subgraph "Load Balancer (Optional)"
+        LB[Nginx / CloudFlare]
+    end
+
+    subgraph "Application Tier"
+        API1[FastAPI Instance 1<br/>:8000<br/>+ Workflow Executor]
+        API2[FastAPI Instance 2<br/>:8000<br/>+ Workflow Executor]
+    end
+
+    subgraph "External Services"
+        SpotifyAPI[Spotify Web API]
+        OpenAIAPI[OpenAI API]
+        ClaudeAPI[Anthropic API]
+    end
+
+    subgraph "Monitoring (Optional)"
+        Logs[Logging Service]
+    end
+
+    Internet([Internet]) --> LB
+    LB --> API1
+    LB --> API2
+
+    API1 --> SpotifyAPI
+    API2 --> SpotifyAPI
+
+    API1 -.-> OpenAIAPI
+    API2 -.-> ClaudeAPI
+
+    API1 --> Logs
+    API2 --> Logs
+
+    classDef lb fill:#e3f2fd,stroke:#1565c0
+    classDef app fill:#fff3e0,stroke:#e65100
+    classDef external fill:#fce4ec,stroke:#880e4f
+    classDef monitoring fill:#fff9c4,stroke:#f57f17
+
+    class LB lb
+    class API1,API2 app
+    class SpotifyAPI,OpenAIAPI,ClaudeAPI external
+    class Logs monitoring
+```
+
+**Deployment Mode Comparison:**
+
+| Aspect | Temporal Mode | Standalone Mode |
+|--------|---------------|-----------------|
+| **Components** | 7+ (API, Worker, Temporal, PostgreSQL, etc.) | 1-2 (FastAPI only) |
+| **Scaling** | Horizontal (multiple workers) | Horizontal (stateless API) |
+| **State Storage** | PostgreSQL (persistent) | In-memory (ephemeral) |
+| **Cost** | Higher ($200-400/month) | Lower ($10-50/month) |
+| **Complexity** | High (orchestration layer) | Low (direct execution) |
+| **Reliability** | High (durable workflows) | Medium (best-effort) |
+| **Best For** | Production, high traffic | Development, low traffic |
+
 ---
 
 ## Technology Stack Summary
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Client** | iOS Shortcuts | User interface for syncing |
-| **API** | FastAPI | REST API endpoints |
-| **Orchestration** | Temporal | Durable workflow execution |
-| **Integration** | MCP (Model Context Protocol) | Spotify API wrapper |
-| **AI** | OpenAI GPT-4 / Anthropic Claude | Track disambiguation |
-| **Matching** | RapidFuzz | Fuzzy string matching |
-| **Database** | PostgreSQL | Temporal workflow state |
-| **HTTP Client** | HTTPX | Async HTTP requests |
-| **Spotify Client** | Spotipy | Spotify API SDK |
+| Layer | Technology | Purpose | Required In |
+|-------|-----------|---------|-------------|
+| **Client** | iOS Shortcuts | User interface for syncing | Both modes |
+| **API** | FastAPI | REST API endpoints | Both modes |
+| **Orchestration** | Temporal | Durable workflow execution | Temporal mode only |
+| **Executor** | Standalone Executor | Direct workflow execution | Standalone mode only |
+| **Integration** | MCP (Model Context Protocol) | Spotify API wrapper | Both modes |
+| **AI** | OpenAI GPT-4 / Anthropic Claude | Track disambiguation | Both modes |
+| **Matching** | RapidFuzz | Fuzzy string matching | Both modes |
+| **Database** | PostgreSQL | Temporal workflow state | Temporal mode only |
+| **HTTP Client** | HTTPX | Async HTTP requests | Both modes |
+| **Spotify Client** | Spotipy | Spotify API SDK | Both modes |
 
 ---
 
 ## Key Design Decisions
 
-### 1. Fire-and-Forget Architecture
-- **Why**: Instant response to iOS users, no waiting for completion
-- **How**: Temporal workflows run asynchronously after API returns 202 Accepted
-- **Benefit**: Better UX, resilient to network issues
+### 1. Dual Execution Modes
+- **Why**: Different deployment scenarios have different requirements
+- **How**: `USE_TEMPORAL` flag toggles between Temporal orchestration and direct execution
+- **Benefit**: Simple deployments don't need complex infrastructure, but can scale up when needed
+- **Trade-off**: In standalone mode, lose durability and advanced retry capabilities
 
-### 2. Temporal for Orchestration
-- **Why**: Need durable, reliable workflow execution with retries
+### 2. Fire-and-Forget Architecture
+- **Why**: Instant response to iOS users, no waiting for completion
+- **How**: Workflows run asynchronously after API returns 202 Accepted
+- **Benefit**: Better UX, resilient to network issues
+- **Implementation**: Temporal workflows (temporal mode) or asyncio tasks (standalone mode)
+
+### 3. Temporal for Orchestration (Optional)
+- **Why**: Need durable, reliable workflow execution with retries for production
 - **How**: Workflows persist state, survive worker restarts
 - **Benefit**: Automatic retries, progress tracking, failure recovery
+- **When**: Enable with `USE_TEMPORAL=true` for production deployments
 
-### 3. MCP for Spotify Integration
+### 4. Standalone Executor (Alternative)
+- **Why**: Not all deployments need Temporal's complexity
+- **How**: Direct async execution with in-memory state and basic retry logic
+- **Benefit**: Simple deployment, lower resource usage, faster development
+- **When**: Enable with `USE_TEMPORAL=false` for development or simple deployments
+
+### 5. MCP for Spotify Integration
 - **Why**: Standardized protocol for API tool calling
 - **How**: MCP server exposes Spotify operations as callable tools
 - **Benefit**: Clean separation, easy to mock/test, swappable implementations
+- **Note**: Works identically in both execution modes
 
-### 4. Swappable AI Providers
+### 6. Swappable AI Providers
 - **Why**: Not all users have access to same AI services
-- **How**: Abstract AI interface with multiple implementations
+- **How**: Abstract AI interface with multiple implementations (Langchain/OpenAI or Claude SDK)
 - **Benefit**: Flexibility, cost optimization, fallback options
+- **Note**: Both providers work in both execution modes
 
-### 5. ISRC Priority Matching
+### 7. ISRC Priority Matching
 - **Why**: Most accurate way to match tracks across services
 - **How**: Check ISRC first, fall back to fuzzy matching
 - **Benefit**: Higher accuracy, fewer false positives
+- **Note**: Same matching logic in both execution modes
 
 ---
 
 ## Related Documentation
 
-- [SETUP.md](./SETUP.md) - Local development setup
-- [TESTING.md](./TESTING.md) - Testing guide
 - [README.md](./README.md) - Project overview and quick start
+- [docs/EXECUTION_MODES.md](./docs/EXECUTION_MODES.md) - **Detailed comparison of Temporal vs Standalone modes**
+- [SETUP.md](./SETUP.md) - Local development setup (both modes)
+- [TESTING.md](./TESTING.md) - Testing guide
 - [docs/ios-shortcuts-setup.md](./docs/ios-shortcuts-setup.md) - iOS integration guide
