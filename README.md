@@ -14,17 +14,45 @@ Seamlessly sync songs from Apple Music to Spotify playlists using iOS Shortcuts.
 
 ## Architecture
 
+High-level system flow:
+
+```mermaid
+graph LR
+    A[📱 iOS Shortcuts] -->|HTTP POST| B[🚀 FastAPI Server]
+    B -->|Start Workflow| C[⚡ Temporal Server]
+    C -->|Execute| D[🔄 Temporal Worker]
+    D -->|Run Activities| E[🎯 MCP Client]
+    E -->|MCP Protocol| F[🎵 MCP Spotify Server]
+    F -->|REST API| G[🎶 Spotify API]
+    D -.->|AI Disambiguation| H[🤖 OpenAI/Claude]
+
+    style A fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style B fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style C fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    style D fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    style E fill:#fff9c4,stroke:#f57f17,stroke-width:2px
+    style F fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    style G fill:#e0f2f1,stroke:#004d40,stroke-width:2px
+    style H fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
 ```
-iOS Shortcuts → FastAPI Server → Temporal Workflows → MCP Spotify Server → Spotify API
-```
+
+**📖 [View Detailed Architecture Documentation](./ARCHITECTURE.md)** - Includes comprehensive diagrams for:
+- System architecture with all components
+- Complete sync workflow sequence diagram
+- Component interaction flows
+- Data flow diagrams
+- Activity execution state machines
+- Deployment architecture
 
 ### Components
 
-- **FastAPI Server** - HTTP endpoints for iOS Shortcuts
-- **Temporal Workflows** - Durable workflow orchestration
-- **MCP Server** - Spotify API wrapper using Model Context Protocol
-- **Activities** - Search, fuzzy matching, AI disambiguation, playlist management
-- **AI Agent** - Swappable AI providers (Langchain/OpenAI or Claude SDK/Anthropic) for disambiguation
+- **📱 iOS Shortcuts** - User interface for one-tap syncing from Apple Music
+- **🚀 FastAPI Server** - HTTP endpoints for sync requests and status queries
+- **⚡ Temporal Server** - Durable workflow orchestration engine
+- **🔄 Temporal Worker** - Executes workflow and activity code
+- **🎯 Activities** - Search, fuzzy matching, AI disambiguation, playlist management
+- **🎵 MCP Server** - Spotify API wrapper using Model Context Protocol
+- **🤖 AI Agent** - Swappable AI providers (Langchain/OpenAI or Claude SDK/Anthropic) for disambiguation
 
 ## Quick Start
 
