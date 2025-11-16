@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import patch, Mock, AsyncMock
 import json
 
-from mcp_client.client import MCPSpotifyClient
+from mcp_client.client import SpotifyMCPClient
 from models.data_models import SpotifyTrackResult
 
 
@@ -45,7 +45,7 @@ class TestMCPClientServerIntegration:
             mock_spotify.return_value = mock_sp
 
             # Create MCP client and test real communication
-            client = MCPSpotifyClient()
+            client = SpotifyMCPClient()
 
             # This tests the actual MCP protocol, parsing, and data transformation
             result = await client.search_track("Bohemian Rhapsody Queen", limit=10)
@@ -79,7 +79,7 @@ class TestMCPClientServerIntegration:
             }
             mock_spotify.return_value = mock_sp
 
-            client = MCPSpotifyClient()
+            client = SpotifyMCPClient()
 
             result = await client.add_track_to_playlist(
                 track_id="7tFiyTwD0nx5a1eklYtX2J",
@@ -118,7 +118,7 @@ class TestMCPClientServerIntegration:
             }
             mock_spotify.return_value = mock_sp
 
-            client = MCPSpotifyClient()
+            client = SpotifyMCPClient()
 
             result = await client.verify_track_added(
                 track_id="7tFiyTwD0nx5a1eklYtX2J",
@@ -162,7 +162,7 @@ class TestMCPClientServerIntegration:
             }
             mock_spotify.return_value = mock_sp
 
-            client = MCPSpotifyClient()
+            client = SpotifyMCPClient()
 
             result = await client.search_by_isrc("GBUM71029604")
 
@@ -201,7 +201,7 @@ class TestMCPClientServerIntegration:
             ]
             mock_spotify.return_value = mock_sp
 
-            client = MCPSpotifyClient()
+            client = SpotifyMCPClient()
 
             result = await client.get_audio_features("7tFiyTwD0nx5a1eklYtX2J")
 
@@ -219,7 +219,7 @@ class TestMCPClientServerIntegration:
             mock_sp.search.side_effect = Exception("Spotify API error")
             mock_spotify.return_value = mock_sp
 
-            client = MCPSpotifyClient()
+            client = SpotifyMCPClient()
 
             with pytest.raises(Exception) as exc_info:
                 await client.search_track("Test Query")
@@ -239,7 +239,7 @@ class TestMCPClientServerIntegration:
             }
             mock_spotify.return_value = mock_sp
 
-            client = MCPSpotifyClient()
+            client = SpotifyMCPClient()
 
             result = await client.search_track("Nonexistent Song That Doesn't Exist")
 
@@ -273,7 +273,7 @@ class TestMCPClientServerIntegration:
             }
             mock_spotify.return_value = mock_sp
 
-            client = MCPSpotifyClient()
+            client = SpotifyMCPClient()
 
             result = await client.search_track("Indie Track")
 
@@ -313,7 +313,7 @@ class TestMCPClientServerIntegration:
             }
             mock_spotify.return_value = mock_sp
 
-            client = MCPSpotifyClient()
+            client = SpotifyMCPClient()
 
             result = await client.search_track("Collaboration Song")
 
@@ -348,7 +348,7 @@ class TestMCPClientServerIntegration:
             }
             mock_spotify.return_value = mock_sp
 
-            client = MCPSpotifyClient()
+            client = SpotifyMCPClient()
 
             # Test with limit=5
             result = await client.search_track("Test Query", limit=5)
@@ -370,7 +370,7 @@ class TestMCPClientServerIntegration:
             mock_sp.search.return_value = {"tracks": {"items": []}}
             mock_spotify.return_value = mock_sp
 
-            client = MCPSpotifyClient()
+            client = SpotifyMCPClient()
 
             # Test connection
             await client.connect()

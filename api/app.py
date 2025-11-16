@@ -24,7 +24,7 @@ import asyncio
 import logging
 import time
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING, Any
 import uuid
 
 from fastapi import FastAPI, HTTPException, status
@@ -43,6 +43,10 @@ from api.models import (
     ErrorResponse,
 )
 from models.data_models import SongMetadata, WorkflowInput
+
+# Type-only imports (for type checking, not runtime)
+if TYPE_CHECKING:
+    from temporalio.client import Client
 
 # Conditional imports based on USE_TEMPORAL flag
 if settings.use_temporal:
@@ -81,7 +85,8 @@ app.add_middleware(
 )
 
 # Global Temporal client (only used when use_temporal=true)
-temporal_client: Optional[Client] = None
+# Use Any type when Temporal is not imported to avoid NameError
+temporal_client: Optional[Any] = None
 
 
 @app.on_event("startup")
