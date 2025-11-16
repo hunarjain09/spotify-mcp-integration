@@ -1,7 +1,7 @@
 """Application configuration management using Pydantic Settings."""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+from typing import Optional, Literal
 from pathlib import Path
 
 
@@ -14,9 +14,16 @@ class Settings(BaseSettings):
     spotify_redirect_uri: str = "http://localhost:8888/callback"
     default_playlist_id: Optional[str] = None
 
-    # OpenAI Configuration
-    openai_api_key: str
-    ai_model: str = "gpt-4"
+    # AI Configuration
+    ai_provider: Literal["langchain", "claude"] = "langchain"  # Choose between Langchain (OpenAI) or Claude SDK
+
+    # OpenAI Configuration (used when ai_provider="langchain")
+    openai_api_key: Optional[str] = None
+    ai_model: str = "gpt-4"  # Used for Langchain provider
+
+    # Anthropic Configuration (used when ai_provider="claude")
+    anthropic_api_key: Optional[str] = None
+    claude_model: str = "claude-3-5-sonnet-20241022"  # Used for Claude provider
 
     # Temporal Configuration
     temporal_host: str = "localhost:7233"
@@ -66,6 +73,22 @@ class Settings(BaseSettings):
             }
         return None
 
+    def validate_ai_config(self) -> None:
+        """Validate that required AI API keys are present based on provider."""
+        if self.use_ai_disambiguation:
+            if self.ai_provider == "langchain" and not self.openai_api_key:
+                raise ValueError(
+                    "OPENAI_API_KEY is required when AI_PROVIDER=langchain and USE_AI_DISAMBIGUATION=true"
+                )
+            elif self.ai_provider == "claude" and not self.anthropic_api_key:
+                raise ValueError(
+                    "ANTHROPIC_API_KEY is required when AI_PROVIDER=claude and USE_AI_DISAMBIGUATION=true"
+                )
+
 
 # Global settings instance
 settings = Settings()
+
+# Validate AI configuration on load
+if settings.use_ai_disambiguation:
+    settings.validate_ai_config()
