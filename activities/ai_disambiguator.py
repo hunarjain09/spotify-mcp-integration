@@ -4,7 +4,7 @@ from typing import List, Dict, Optional
 
 from temporalio import activity
 from langchain_openai import ChatOpenAI
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from anthropic import AsyncAnthropic
 
 from models.data_models import SongMetadata, SpotifyTrackResult
