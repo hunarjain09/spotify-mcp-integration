@@ -31,6 +31,32 @@ The project uses **pytest** as the testing framework with the following key tool
 - **Fast Execution**: Unit tests run in < 1 second, full suite in < 30 seconds
 - **Isolated Tests**: Each test is independent and can run in any order
 - **Real-world Scenarios**: Tests cover both happy paths and edge cases
+- **No Infrastructure Required**: Tests run in standalone mode by default (no Temporal needed)
+
+### Test Environment Configuration
+
+**Important:** Tests run in **Standalone Mode** (`USE_TEMPORAL=false`) by default.
+
+**Why?**
+- ✅ Faster test execution (no Temporal infrastructure)
+- ✅ Simpler CI/CD pipelines
+- ✅ No Docker required
+- ✅ Lower resource usage
+
+**Configuration** (in `tests/conftest.py`):
+```python
+os.environ["USE_TEMPORAL"] = "false"  # Tests run in standalone mode
+```
+
+**Testing Temporal Mode:**
+If you need to test Temporal-specific functionality, override the environment variable in your test:
+```python
+@pytest.fixture
+def temporal_mode():
+    os.environ["USE_TEMPORAL"] = "true"
+    yield
+    os.environ["USE_TEMPORAL"] = "false"
+```
 
 ## Test Structure
 
@@ -71,11 +97,18 @@ tests/
 pytest
 ```
 
+**Note:** Tests run in standalone mode by default. No Temporal server needed!
+
 ### Run Specific Test Categories
 
 Run only unit tests:
 ```bash
 pytest tests/unit/
+```
+
+Run only integration tests:
+```bash
+pytest tests/integration/
 ```
 
 Run only integration tests:

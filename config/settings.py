@@ -26,6 +26,16 @@ class Settings(BaseSettings):
     claude_model: str = "claude-3-5-sonnet-20241022"  # Used for Claude provider
 
     # Temporal Configuration
+    # USE_TEMPORAL: Feature flag to enable/disable Temporal orchestration
+    # - When True: Uses Temporal for durable workflow execution with retry policies,
+    #   state persistence, and distributed execution. Requires Temporal server running.
+    # - When False: Uses direct synchronous execution without Temporal dependency.
+    #   Simpler deployment with just FastAPI + Spotify, but loses durability and
+    #   advanced retry mechanisms. Ideal for lightweight deployments or development.
+    # Reasoning: Some deployments don't need the complexity of Temporal infrastructure.
+    # For simple use cases (single server, fire-and-forget), direct execution is sufficient.
+    use_temporal: bool = True
+
     temporal_host: str = "localhost:7233"
     temporal_namespace: str = "default"
     temporal_tls_cert_path: Optional[Path] = None
