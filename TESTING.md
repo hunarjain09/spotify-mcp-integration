@@ -360,44 +360,162 @@ def test_song_metadata_to_search_query():
 
 ### Integration Tests (`@pytest.mark.integration`)
 
-Test multiple components working together:
+Test multiple components working together with **minimal mocking**.
+
+**Philosophy: Mock External APIs Only**
+
+Integration tests should mock as little as possible to test real component interactions:
+- ✅ **Mock**: External APIs (Spotify, OpenAI, Anthropic)
+- ✅ **Use Real**: Temporal test environment, Activities, Workflows, MCP protocol
+- ✅ **Test**: Actual data flow, error handling, retry logic
 
 **What to test:**
-- API endpoints with mocked Temporal
-- Activities with mocked external APIs
-- Database operations
-- MCP client/server communication
+- Complete workflow execution with real Temporal
+- Activity execution with real logic
+- MCP client/server protocol communication
+- API endpoints with real request validation
+- Error handling and retry mechanisms
 
-**Example:**
+**Example - Workflow Integration (Minimal Mocking):**
 ```python
 @pytest.mark.integration
-def test_sync_endpoint(client, mock_temporal_client):
-    """Test full sync endpoint flow."""
-    response = client.post("/api/v1/sync", json={
-        "track_name": "Test Song",
-        "artist": "Test Artist",
-        "playlist_id": "37i9dQZF1DXcBWIGoYBM5M",
-    })
+async def test_complete_workflow_execution():
+    """Test complete workflow with real Temporal execution."""
+    from temporalio.testing import WorkflowEnvironment
 
-    assert response.status_code == 202
-    assert "workflow_id" in response.json()
-    mock_temporal_client.start_workflow.assert_called_once()
+    async with await WorkflowEnvironment.start_time_skipping() as env:
+        # Mock only external Spotify API, not our code
+        with patch("activities.spotify_search.get_spotify_mcp_client") as mock_mcp:
+            # Setup external API mock
+            mock_client = AsyncMock()
+            mock_client.search_track = AsyncMock(return_value={
+                "tracks": [{"id": "track1", "name": "Test", ...}]
+            })
+            mock_mcp.return_value = mock_client
+
+            # Create worker with REAL activities and workflows
+            async with Worker(
+                env.client,
+                task_queue="test-queue",
+                workflows=[MusicSyncWorkflow],
+                activities=[
+                    search_spotify,        # Real activity
+                    fuzzy_match_tracks,    # Real activity
+                    add_track_to_playlist, # Real activity
+                ],
+            ):
+                # Execute complete workflow
+                result = await env.client.execute_workflow(
+                    MusicSyncWorkflow.run,
+                    workflow_input,
+                    id="test-workflow",
+                    task_queue="test-queue",
+                )
+
+                # Verify real workflow execution
+                assert result.success is True
+                assert result.confidence_score > 0.85
+```
+
+**Example - MCP Integration (Tests Protocol):**
+```python
+@pytest.mark.integration
+async def test_mcp_client_server_communication():
+    """Test MCP protocol between client and server."""
+    # Mock only Spotipy (final API call), test MCP protocol
+    with patch("mcp_server.spotify_server.spotipy.Spotify") as mock_spotify:
+        mock_sp = Mock()
+        mock_sp.search.return_value = {"tracks": {"items": [...]}}
+        mock_spotify.return_value = mock_sp
+
+        # Test real MCP client
+        client = MCPSpotifyClient()
+
+        # This tests actual MCP protocol, parsing, transformation
+        result = await client.search_track("Test Query")
+
+        # Verify MCP worked correctly
+        assert "tracks" in result
+        mock_sp.search.assert_called_once()
+```
+
+**What NOT to do:**
+```python
+# ❌ Bad - Mocks too much
+@patch("workflows.music_sync_workflow.search_spotify")
+@patch("workflows.music_sync_workflow.fuzzy_match_tracks")
+@patch("workflows.music_sync_workflow.add_track_to_playlist")
+async def test_workflow(mock_add, mock_fuzzy, mock_search):
+    # This doesn't test real integration!
+    pass
+
+# ✅ Good - Mocks only external APIs
+async def test_workflow():
+    with patch("activities.spotify_search.get_spotify_mcp_client") as mock_mcp:
+        # Mock external API, test real workflow/activity logic
+        async with WorkflowEnvironment() as env:
+            async with Worker(...):
+                # Real execution!
+                pass
 ```
 
 ### Workflow Tests (`@pytest.mark.workflow`)
 
-Test Temporal workflows:
+Test Temporal workflows using `temporalio.testing.WorkflowEnvironment` for real execution:
+
+**Key Points:**
+- Use `WorkflowEnvironment` to test workflows in-memory
+- Test real workflow logic, state management, and queries
+- Mock only external API calls, never workflow internals
 
 ```python
 @pytest.mark.workflow
-async def test_music_sync_workflow(mock_temporal_client):
-    """Test complete workflow execution."""
-    # Setup test environment for Temporal
+@pytest.mark.asyncio
+async def test_music_sync_workflow_complete_execution():
+    """Test complete workflow execution with real Temporal."""
     from temporalio.testing import WorkflowEnvironment
+    from temporalio.worker import Worker
 
-    async with WorkflowEnvironment() as env:
-        # Test workflow logic
-        pass
+    async with await WorkflowEnvironment.start_time_skipping() as env:
+        # Mock external APIs only
+        with patch("activities.spotify_search.get_spotify_mcp_client") as mock_mcp:
+            mock_client = AsyncMock()
+            mock_client.search_track = AsyncMock(return_value={...})
+            mock_mcp.return_value = mock_client
+
+            # Create worker with real workflow and activities
+            async with Worker(
+                env.client,
+                task_queue="test-queue",
+                workflows=[MusicSyncWorkflow],
+                activities=[search_spotify, fuzzy_match_tracks],
+            ):
+                # Execute workflow
+                result = await env.client.execute_workflow(
+                    MusicSyncWorkflow.run,
+                    workflow_input,
+                    id="test-workflow-123",
+                    task_queue="test-queue",
+                )
+
+                # Test real workflow behavior
+                assert result.success is True
+                assert result.retry_count >= 0
+
+@pytest.mark.workflow
+@pytest.mark.asyncio
+async def test_workflow_progress_query():
+    """Test workflow progress queries."""
+    async with await WorkflowEnvironment.start_time_skipping() as env:
+        async with Worker(...):
+            # Start workflow
+            handle = await env.client.start_workflow(...)
+
+            # Query progress - tests real query handler
+            progress = await handle.query(MusicSyncWorkflow.get_progress)
+
+            assert progress.current_step is not None
+            assert progress.steps_total > 0
 ```
 
 ### End-to-End Tests (`@pytest.mark.e2e`)
