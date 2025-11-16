@@ -33,7 +33,7 @@ class TestSettings:
 
         settings = Settings()
 
-        assert settings.spotify_redirect_uri == "http://localhost:8888/callback"
+        assert settings.spotify_redirect_uri == "http://127.0.0.1:8888/callback"
         assert settings.ai_model == "gpt-4"
         assert settings.temporal_host == "localhost:7233"
         # Note: conftest.py sets TEMPORAL_NAMESPACE="test" for test environment

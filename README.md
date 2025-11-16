@@ -181,7 +181,9 @@ ANTHROPIC_API_KEY=your_anthropic_key_here
 1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
 2. Create a new app
 3. Copy Client ID and Client Secret
-4. Add redirect URI: `http://localhost:8888/callback`
+4. **Add redirect URI:** `http://127.0.0.1:8888/callback`
+   - ⚠️ **IMPORTANT:** Spotify requires explicit loopback IP `127.0.0.1`, NOT `localhost`
+   - Use HTTP (not HTTPS) for loopback addresses
 
 **Getting Playlist ID:**
 - Open Spotify, right-click a playlist → Share → Copy link

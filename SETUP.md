@@ -79,7 +79,8 @@ You'll need to obtain API credentials from the following services:
    - Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
    - Create a new app
    - Note your `Client ID` and `Client Secret`
-   - Add `http://localhost:8888/callback` to the Redirect URIs
+   - **Add `http://127.0.0.1:8888/callback` to the Redirect URIs**
+   - ⚠️ **IMPORTANT:** Spotify requires explicit loopback IP `127.0.0.1`, NOT `localhost`
 
 2. **AI Provider** (Optional - for track disambiguation)
    - **Option A: OpenAI** - Go to [OpenAI Platform](https://platform.openai.com/) and create an API key
@@ -204,7 +205,7 @@ USE_TEMPORAL=false
 # Spotify API Credentials (Required for both modes)
 SPOTIFY_CLIENT_ID=your_spotify_client_id_here
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret_here
-SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
 
 # AI Provider Configuration (Optional - choose one)
 # Option A: OpenAI (Langchain)
