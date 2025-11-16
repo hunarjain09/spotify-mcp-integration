@@ -24,7 +24,7 @@ iOS Shortcuts → FastAPI Server → Temporal Workflows → MCP Spotify Server �
 - **Temporal Workflows** - Durable workflow orchestration
 - **MCP Server** - Spotify API wrapper using Model Context Protocol
 - **Activities** - Search, fuzzy matching, AI disambiguation, playlist management
-- **AI Agent** - GPT-4 powered disambiguation for ambiguous matches
+- **AI Agent** - Swappable AI providers (Langchain/OpenAI or Claude SDK/Anthropic) for disambiguation
 
 ## Quick Start
 
@@ -34,7 +34,9 @@ iOS Shortcuts → FastAPI Server → Temporal Workflows → MCP Spotify Server �
 - [UV](https://docs.astral.sh/uv/) (recommended) or pip for package management
 - Docker & Docker Compose (for local Temporal)
 - Spotify Developer Account
-- OpenAI API Key (for AI disambiguation)
+- **AI Provider** (for AI disambiguation):
+  - OpenAI API Key (if using Langchain provider), OR
+  - Anthropic API Key (if using Claude SDK provider)
 - iPhone with iOS Shortcuts app
 
 **Installing UV (recommended):**
@@ -81,8 +83,16 @@ SPOTIFY_CLIENT_ID=your_client_id_here
 SPOTIFY_CLIENT_SECRET=your_client_secret_here
 DEFAULT_PLAYLIST_ID=your_playlist_id_here
 
-# OpenAI (get from https://platform.openai.com/api-keys)
+# AI Provider - Choose "langchain" or "claude"
+AI_PROVIDER=langchain
+
+# OpenAI (required if using AI_PROVIDER=langchain)
+# Get from https://platform.openai.com/api-keys
 OPENAI_API_KEY=your_openai_key_here
+
+# Anthropic (required if using AI_PROVIDER=claude)
+# Get from https://console.anthropic.com/settings/keys
+ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
 **Getting Spotify Credentials:**
@@ -264,18 +274,47 @@ FUZZY_MATCH_THRESHOLD=0.85  # 0.0-1.0 (higher = stricter)
 
 ### AI Disambiguation
 
-Enable/disable AI for ambiguous matches:
+The system supports two AI providers for disambiguation: **Langchain (OpenAI)** or **Claude SDK (Anthropic)**.
+
+#### Choose Your AI Provider
 
 ```env
-USE_AI_DISAMBIGUATION=true  # Use GPT-4 for hard cases
-AI_MODEL=gpt-4              # or gpt-3.5-turbo for lower cost
+AI_PROVIDER=langchain  # or "claude"
+USE_AI_DISAMBIGUATION=true  # Enable/disable AI for hard cases
 ```
+
+#### Langchain (OpenAI) Provider
+
+```env
+AI_PROVIDER=langchain
+AI_MODEL=gpt-4  # or gpt-3.5-turbo for lower cost
+OPENAI_API_KEY=your_openai_key_here
+```
+
+**Benefits:**
+- Well-established, mature API
+- Multiple model options (GPT-4, GPT-3.5)
+- Cost: ~$0.002 per disambiguation with GPT-4
+
+#### Claude SDK (Anthropic) Provider
+
+```env
+AI_PROVIDER=claude
+CLAUDE_MODEL=claude-3-5-sonnet-20241022  # Latest Claude model
+ANTHROPIC_API_KEY=your_anthropic_key_here
+```
+
+**Benefits:**
+- Latest Claude 3.5 Sonnet model
+- Strong reasoning capabilities
+- Excellent for nuanced music matching decisions
+- Cost-effective for high-quality results
 
 **When is AI used?**
 - Only when fuzzy matching score < threshold
 - Considers top 5 candidates
-- Analyzes release dates, remasters, live versions
-- Costs ~$0.002 per disambiguation
+- Analyzes release dates, remasters, live versions, featured artists
+- Works identically with both providers
 
 ### Worker Concurrency
 
@@ -455,7 +494,9 @@ CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
 Set in your deployment platform:
 - `SPOTIFY_CLIENT_ID`
 - `SPOTIFY_CLIENT_SECRET`
-- `OPENAI_API_KEY`
+- `AI_PROVIDER` (langchain or claude)
+- `OPENAI_API_KEY` (if using langchain provider)
+- `ANTHROPIC_API_KEY` (if using claude provider)
 - `TEMPORAL_HOST`
 - All other vars from `.env.example`
 
