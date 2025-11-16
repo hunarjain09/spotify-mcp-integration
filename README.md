@@ -31,6 +31,7 @@ iOS Shortcuts → FastAPI Server → Temporal Workflows → MCP Spotify Server �
 ### Prerequisites
 
 - Python 3.11+
+- [UV](https://docs.astral.sh/uv/) (recommended) or pip for package management
 - Docker & Docker Compose (for local Temporal)
 - Spotify Developer Account
 - **AI Provider** (for AI disambiguation):
@@ -38,10 +39,31 @@ iOS Shortcuts → FastAPI Server → Temporal Workflows → MCP Spotify Server �
   - Anthropic API Key (if using Claude SDK provider)
 - iPhone with iOS Shortcuts app
 
+**Installing UV (recommended):**
+```bash
+# On macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# On Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
 ### 1. Clone and Install
+
+This project uses [UV](https://docs.astral.sh/uv/) for fast, reliable Python package management.
 
 ```bash
 cd spotify-mcp-integration
+
+# Install dependencies with UV
+uv sync
+
+# Activate the virtual environment
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+```
+
+**Alternative (using pip):**
+```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -119,7 +141,11 @@ This will:
 In a new terminal:
 
 ```bash
-source venv/bin/activate
+# With UV
+uv run python workers/music_sync_worker.py
+
+# Or activate the virtual environment first
+source .venv/bin/activate
 python workers/music_sync_worker.py
 ```
 
@@ -134,7 +160,11 @@ Starting worker on task queue 'music-sync-queue'...
 In another terminal:
 
 ```bash
-source venv/bin/activate
+# With UV
+uv run uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
+
+# Or activate the virtual environment first
+source .venv/bin/activate
 python -m uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -317,12 +347,12 @@ curl http://localhost:8000/api/v1/health
 
 **Worker logs:**
 ```bash
-python workers/music_sync_worker.py
+uv run python workers/music_sync_worker.py
 ```
 
 **API logs:**
 ```bash
-python -m uvicorn api.app:app --log-level info
+uv run uvicorn api.app:app --log-level info
 ```
 
 ## Project Structure
@@ -387,7 +417,7 @@ python mcp_server/spotify_server.py
 
 **Check worker is running:**
 ```bash
-python workers/music_sync_worker.py
+uv run python workers/music_sync_worker.py
 ```
 
 **Check task queue name matches:**
@@ -428,20 +458,35 @@ TEMPORAL_TLS_KEY_PATH=certs/client.key
 
 ```dockerfile
 # Dockerfile (create this)
-FROM python:3.11-slim
+FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
 
+# Copy dependency files
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies
+RUN uv sync --frozen --no-dev
+
+# Copy application code
 COPY . .
 
-CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 **Deploy worker separately:**
 ```dockerfile
-CMD ["python", "workers/music_sync_worker.py"]
+CMD ["uv", "run", "python", "workers/music_sync_worker.py"]
+```
+
+**Alternative (using pip):**
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 ### Environment Variables
