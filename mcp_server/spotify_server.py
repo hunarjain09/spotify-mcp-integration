@@ -14,6 +14,10 @@ from spotipy.oauth2 import SpotifyOAuth
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp import Tool
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 # Initialize MCP server
