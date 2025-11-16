@@ -13,6 +13,9 @@ os.environ["SPOTIFY_CLIENT_SECRET"] = "test_client_secret"
 os.environ["OPENAI_API_KEY"] = "test_openai_key"
 os.environ["TEMPORAL_HOST"] = "localhost:7233"
 os.environ["TEMPORAL_NAMESPACE"] = "test"
+# Use standalone mode by default for tests (no Temporal infrastructure needed)
+# Tests that specifically need Temporal mode should override this
+os.environ["USE_TEMPORAL"] = "false"
 
 from fastapi.testclient import TestClient
 from models.data_models import (
@@ -345,6 +348,7 @@ def test_env():
         "OPENAI_API_KEY": "test_openai_key",
         "TEMPORAL_HOST": "localhost:7233",
         "TEMPORAL_NAMESPACE": "test",
+        "USE_TEMPORAL": "false",  # Use standalone mode by default for tests
         "LOG_LEVEL": "ERROR",  # Reduce noise in tests
     })
 

@@ -14,7 +14,7 @@ from temporalio.worker import Worker
 from workflows.music_sync_workflow import MusicSyncWorkflow
 from activities.spotify_search import search_spotify
 from activities.fuzzy_matcher import fuzzy_match_tracks
-from activities.ai_disambiguator import disambiguate_with_ai
+from activities.ai_disambiguator import ai_disambiguate_track
 from activities.playlist_manager import add_track_to_playlist, verify_track_added
 from models.data_models import (
     WorkflowInput,
@@ -71,7 +71,7 @@ class TestMusicSyncWorkflowIntegration:
                     activities=[
                         search_spotify,
                         fuzzy_match_tracks,
-                        disambiguate_with_ai,
+                        ai_disambiguate_track,
                         add_track_to_playlist,
                         verify_track_added,
                     ],
@@ -235,7 +235,7 @@ class TestMusicSyncWorkflowIntegration:
                     activities=[
                         search_spotify,
                         fuzzy_match_tracks,
-                        disambiguate_with_ai,
+                        ai_disambiguate_track,
                         add_track_to_playlist,
                         verify_track_added,
                     ],
