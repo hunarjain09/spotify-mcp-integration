@@ -673,35 +673,6 @@ Get workflow status.
 }
 ```
 
-## Documentation
-
-### 📚 Temporal Integration Planning
-
-Comprehensive planning documents for enhancing this integration with Temporal durability patterns:
-
-**📂 [Temporal Planning Documentation](./docs/temporal-planning/)**
-
-Includes:
-- **Enhancement Plan** - 13 prioritized enhancements with code examples
-- **SDK Integration Guide** - Step-by-step migration to `temporalio.contrib.openai_agents`
-- **MCP Quirks Guide** - Critical MCP server integration quirks and gotchas
-- **Schedules & Timing** - How Temporal schedules interact with MCP servers
-- **Current State Analysis** - Assessment of existing Temporal integration
-- **Implementation Roadmap** - 4-phase plan with timelines
-
-**Quick Links:**
-- [Start Here: Planning Summary](./docs/temporal-planning/TEMPORAL_PLANNING_SUMMARY.md)
-- [Quick Wins (Week 1-2)](./docs/temporal-planning/TEMPORAL_ENHANCEMENT_PLAN.md#priority-1-observability-high-roi-low-effort)
-- [MCP Integration Quirks](./docs/temporal-planning/TEMPORAL_MCP_QUIRKS.md)
-
-### 📖 Architecture & API Documentation
-
-- [**Architecture Guide**](./ARCHITECTURE.md) - System architecture with detailed diagrams
-- [**API Reference**](./API_REFERENCE.md) - Complete REST API documentation
-- [**Setup Guide**](./SETUP.md) - Detailed installation and configuration
-- [**Testing Guide**](./TESTING.md) - Test suite documentation
-- [**Agent Integration**](./AGENT_INTEGRATION.md) - Claude Agent SDK usage
-
 ## Contributing
 
 Contributions welcome! Please:
