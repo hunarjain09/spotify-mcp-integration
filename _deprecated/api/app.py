@@ -1,4 +1,18 @@
 """
+⚠️ DEPRECATED - DO NOT USE ⚠️
+
+This file has been DEPRECATED as of November 17, 2025.
+
+USE INSTEAD: api/app_agent.py (Agent SDK implementation)
+
+REASON FOR DEPRECATION:
+- This Temporal/Standalone implementation is overly complex
+- Agent SDK provides better AI integration with less code
+- See MIGRATION_GUIDE.md for migration instructions
+- See _deprecated/README.md for more details
+
+---
+
 FastAPI server for Apple Music to Spotify sync system.
 
 DUAL-MODE ARCHITECTURE:
