@@ -1,4 +1,20 @@
-"""Main Temporal workflow for syncing Apple Music tracks to Spotify."""
+"""
+⚠️ DEPRECATED - DO NOT USE ⚠️
+
+This file has been DEPRECATED as of November 17, 2025.
+
+USE INSTEAD: agent_executor.py (Agent SDK implementation)
+
+REASON FOR DEPRECATION:
+- Temporal workflows add unnecessary complexity
+- Agent SDK provides automatic orchestration
+- See MIGRATION_GUIDE.md for migration instructions
+- See _deprecated/README.md for more details
+
+---
+
+Main Temporal workflow for syncing Apple Music tracks to Spotify.
+"""
 
 from datetime import timedelta
 from typing import Optional

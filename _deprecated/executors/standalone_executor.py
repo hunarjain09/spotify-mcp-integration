@@ -1,4 +1,19 @@
 """
+⚠️ DEPRECATED - DO NOT USE ⚠️
+
+This file has been DEPRECATED as of November 17, 2025.
+
+USE INSTEAD: agent_executor.py (Agent SDK implementation)
+
+REASON FOR DEPRECATION:
+- Standalone executor still requires manual orchestration
+- Agent SDK provides better AI integration and automatic orchestration
+- Simpler code with fewer lines
+- See MIGRATION_GUIDE.md for migration instructions
+- See _deprecated/README.md for more details
+
+---
+
 Standalone workflow executor for non-Temporal deployments.
 
 REASONING FOR THIS MODULE:

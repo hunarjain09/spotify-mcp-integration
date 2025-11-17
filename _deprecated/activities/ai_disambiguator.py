@@ -1,4 +1,20 @@
-"""AI-powered disambiguation activity supporting both LangChain (OpenAI) and Claude SDK."""
+"""
+⚠️ DEPRECATED - DO NOT USE ⚠️
+
+This file has been DEPRECATED as of November 17, 2025.
+
+USE INSTEAD: Agent SDK handles disambiguation automatically in agent_executor.py
+
+REASON FOR DEPRECATION:
+- Agent SDK has built-in AI reasoning - no separate disambiguation needed
+- This activity-based approach is no longer required
+- See MIGRATION_GUIDE.md for migration instructions
+- See _deprecated/README.md for more details
+
+---
+
+AI-powered disambiguation activity supporting both LangChain (OpenAI) and Claude SDK.
+"""
 
 from typing import List, Dict, Optional
 

@@ -1,4 +1,20 @@
-"""Temporal worker for music sync workflows and activities."""
+"""
+⚠️ DEPRECATED - DO NOT USE ⚠️
+
+This file has been DEPRECATED as of November 17, 2025.
+
+USE INSTEAD: Background tasks in api/app_agent.py (no worker needed)
+
+REASON FOR DEPRECATION:
+- Temporal workers are no longer needed with Agent SDK
+- FastAPI background tasks handle async execution
+- See MIGRATION_GUIDE.md for migration instructions
+- See _deprecated/README.md for more details
+
+---
+
+Temporal worker for music sync workflows and activities.
+"""
 
 import asyncio
 import logging
