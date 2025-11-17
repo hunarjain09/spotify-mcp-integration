@@ -10,8 +10,10 @@ import time
 import uuid
 from typing import Optional, Any
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from api.models import SyncSongRequest, SyncSongResponse, WorkflowStatusResponse
 from models.data_models import SongMetadata
@@ -41,6 +43,44 @@ app.add_middleware(
 
 # In-memory storage for execution results (for status endpoint)
 execution_results: dict[str, AgentExecutionResult] = {}
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Custom handler to log validation errors with request body."""
+    # Try to get the raw request body
+    try:
+        body = await request.body()
+        body_str = body.decode('utf-8')
+        logger.error(f"Validation error for request to {request.url.path}")
+        logger.error(f"Request body: {body_str}")
+        logger.error(f"Validation errors: {exc.errors()}")
+    except Exception as e:
+        logger.error(f"Could not read request body: {e}")
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors(), "body": body_str if 'body_str' in locals() else None},
+    )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all incoming requests."""
+    if request.url.path == "/api/v1/sync" and request.method == "POST":
+        body = await request.receive()
+        logger.info(f"Incoming POST to /api/v1/sync")
+        logger.info(f"Headers: {dict(request.headers)}")
+        logger.info(f"Body: {body}")
+
+        # Re-wrap the body so it can be read again
+        async def receive():
+            return body
+
+        request._receive = receive
+
+    response = await call_next(request)
+    return response
 
 
 @app.on_event("startup")
