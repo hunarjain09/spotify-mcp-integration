@@ -4,6 +4,37 @@ Seamlessly sync songs from Apple Music to Spotify playlists using iOS Shortcuts.
 
 > **🚀 Now Using Agent SDK:** This project has migrated to Anthropic's Agent SDK as the primary implementation. The Agent SDK provides built-in AI reasoning, automatic tool orchestration, and simpler code compared to previous Temporal or Standalone approaches. See [AGENT_INTEGRATION.md](./AGENT_INTEGRATION.md) for details.
 
+## Why This Project Exists
+
+### The Problem: Apple Music Deletes Your Library When You Unsubscribe
+
+After 6 years on Apple Music, I switched to Spotify—only to discover that **Apple Music deletes your entire music library after a certain period when you unsubscribe** ([see this Reddit discussion](https://www.reddit.com/r/AppleMusic/comments/1lrui17/psa_if_you_decide_to_unsubscribe_from_apple_music/)). Unlike Spotify, which preserves your library even without an active subscription, Apple wipes everything.
+
+**Here's what happened:**
+- 📚 **6 years of curated music** - Gone after unsubscribing from Apple Music
+- 🎵 **Apple's recommendation engine still knows my taste** - It has all my listening history
+- 📱 **Got a new phone with 3 months of free Apple Music** - Still shows great recommendations based on my old data
+- 😫 **The frustration** - No easy way to save those recommended gems to my Spotify playlists
+
+### The Solution: One-Tap Sync from Apple Music to Spotify
+
+This project bridges that gap. When Apple Music recommends a song I want to keep, I can now:
+1. Tap the **Share** button in Apple Music
+2. Select **"Add to Spotify"** shortcut
+3. Done! The song is intelligently matched and added to my Spotify playlist
+
+**No more:**
+- ❌ Manual searching on Spotify
+- ❌ Losing track of great recommendations
+- ❌ Switching between apps to find the same song
+- ❌ Worrying about losing my music library again
+
+This is especially valuable for anyone who:
+- Switched from Apple Music to Spotify
+- Lost their library due to Apple's deletion policy
+- Still uses Apple Music's recommendation engine
+- Wants a seamless way to preserve discoveries across platforms
+
 ## Features
 
 - **One-tap syncing** from Apple Music share sheet via iOS Shortcuts
