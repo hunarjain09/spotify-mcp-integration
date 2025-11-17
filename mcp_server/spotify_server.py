@@ -7,6 +7,7 @@ by activities and AI agents.
 import asyncio
 import json
 import os
+import sys
 from typing import Any, Dict, List
 
 import spotipy
@@ -253,10 +254,10 @@ async def main():
 
         # Test connection
         spotify_client.current_user()
-        print("✓ Spotify MCP server initialized successfully", flush=True)
+        print("✓ Spotify MCP server initialized successfully", file=sys.stderr, flush=True)
 
     except Exception as e:
-        print(f"✗ Failed to initialize Spotify client: {e}", flush=True)
+        print(f"✗ Failed to initialize Spotify client: {e}", file=sys.stderr, flush=True)
         raise
 
     # Run MCP server
