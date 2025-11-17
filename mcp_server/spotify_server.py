@@ -70,20 +70,6 @@ async def list_tools() -> List[Tool]:
             },
         ),
         Tool(
-            name="get_audio_features",
-            description="Get audio features (tempo, energy, valence, etc.) for a track",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "track_id": {
-                        "type": "string",
-                        "description": "Spotify track ID (without 'spotify:track:' prefix)",
-                    }
-                },
-                "required": ["track_id"],
-            },
-        ),
-        Tool(
             name="verify_track_added",
             description="Check if a track exists in a playlist",
             inputSchema={
@@ -166,12 +152,6 @@ async def call_tool(name: str, arguments: Dict[str, Any]) -> List[Dict[str, str]
                 arguments["playlist_id"], [arguments["track_uri"]]
             )
             return [{"type": "text", "text": json.dumps(result)}]
-
-        elif name == "get_audio_features":
-            features = spotify_client.audio_features(arguments["track_id"])[0]
-            if features is None:
-                features = {}
-            return [{"type": "text", "text": json.dumps(features)}]
 
         elif name == "verify_track_added":
             # Get playlist tracks (may need pagination for large playlists)
