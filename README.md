@@ -4,6 +4,12 @@ Seamlessly sync songs from Apple Music to Spotify playlists using iOS Shortcuts.
 
 > **🚀 Now Using Agent SDK:** This project has migrated to Anthropic's Agent SDK as the primary implementation. The Agent SDK provides built-in AI reasoning, automatic tool orchestration, and simpler code compared to previous Temporal or Standalone approaches. See [AGENT_INTEGRATION.md](./AGENT_INTEGRATION.md) for details.
 
+## Demo
+
+![Demo](demo.gif)
+
+Watch the one-tap sync in action: Share a song from Apple Music → Tap "Add to Spotify" → Done! The AI intelligently matches and adds it to your Spotify playlist.
+
 ## Why This Project Exists
 
 ### The Problem: Apple Music Deletes Your Library When You Unsubscribe
