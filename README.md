@@ -13,7 +13,7 @@ After 6 years on Apple Music, I switched to Spotify—only to discover that **Ap
 **Here's what happened:**
 - 📚 **6 years of curated music** - Gone after unsubscribing from Apple Music
 - 🎵 **Apple's recommendation engine still knows my taste** - It has all my listening history
-- 📱 **Got a new phone** - Apple Music still shows great recommendations based on my old data
+- 📱 **Got a new phone with 3 months of free Apple Music** - Still shows great recommendations based on my old data
 - 😫 **The frustration** - No easy way to save those recommended gems to my Spotify playlists
 
 ### The Solution: One-Tap Sync from Apple Music to Spotify
