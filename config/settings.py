@@ -25,6 +25,17 @@ class Settings(BaseSettings):
     anthropic_api_key: Optional[str] = None
     claude_model: str = "claude-3-5-sonnet-20241022"  # Used for Claude provider
 
+    # Firestore Configuration
+    # USE_FIRESTORE: Feature flag to enable/disable Firestore for persistent storage
+    # - When True: Uses Firestore to store sync results across function invocations.
+    #   Required for Firebase Functions deployment where instances don't share memory.
+    # - When False: Uses in-memory storage only. Results available only in same process.
+    #   Ideal for local development and testing to avoid Firestore costs.
+    # Reasoning: Firestore consumes storage quota and incurs costs. Local development
+    # doesn't need persistent storage since it's a single long-running process.
+    # Firebase Functions needs it because each request may hit a different instance.
+    use_firestore: bool = False  # Default to False for local dev
+
     # Temporal Configuration
     # USE_TEMPORAL: Feature flag to enable/disable Temporal orchestration
     # - When True: Uses Temporal for durable workflow execution with retry policies,

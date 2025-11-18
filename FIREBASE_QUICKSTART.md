@@ -44,15 +44,44 @@ Update `.firebaserc`:
 }
 ```
 
-## Step 4: Enable Firestore (1 min)
+## Step 4: Enable Firestore (1 min) - OPTIONAL
 
+**Note:** Firestore is optional but recommended for production. It stores sync results persistently across function invocations.
+
+**If you want to use Firestore:**
 1. In Firebase Console → Build → Firestore Database
 2. Click "Create database"
 3. Choose "Production mode"
 4. Select region (e.g., `us-central1`)
 5. Click "Enable"
+6. Set `USE_FIRESTORE=true` in your environment (see Step 5)
 
-## Step 5: Set Secrets (2 min)
+**If you want to skip Firestore** (results only available in same function instance):
+- Set `USE_FIRESTORE=false` (no Firestore setup needed)
+- Cheaper option but status endpoint may not find results
+
+## Step 5: Configure Firestore Flag (30 sec)
+
+Create `functions/.env.yaml` to configure Firestore usage:
+
+```bash
+# Navigate to functions directory
+cd functions
+
+# Create .env.yaml
+cat > .env.yaml << EOF
+# Enable Firestore for persistent storage (set to 'false' to disable)
+USE_FIRESTORE: 'true'
+EOF
+
+cd ..
+```
+
+**Choose:**
+- `USE_FIRESTORE: 'true'` - Recommended. Results persist across function instances.
+- `USE_FIRESTORE: 'false'` - Cheaper. Results only available in same instance.
+
+## Step 6: Set Secrets (2 min)
 
 ```bash
 # Anthropic API key
@@ -67,7 +96,7 @@ firebase functions:secrets:set SPOTIFY_CLIENT_SECRET
 # Paste your Spotify client secret
 ```
 
-## Step 6: Authenticate Spotify Locally (1 min)
+## Step 7: Authenticate Spotify Locally (1 min)
 
 This creates your Spotify OAuth token:
 
@@ -81,7 +110,9 @@ python mcp_server/spotify_server.py
 
 This creates `.cache-spotify` file.
 
-## Step 7: Upload Spotify Token to Firestore (1 min)
+## Step 8: Upload Spotify Token to Firestore (1 min)
+
+**Only if using Firestore (USE_FIRESTORE=true):**
 
 ```bash
 python scripts/store_spotify_token.py
@@ -92,7 +123,11 @@ You should see:
 ✅ Spotify OAuth token uploaded to Firestore
 ```
 
-## Step 8: Deploy! (2 min)
+**If not using Firestore (USE_FIRESTORE=false):**
+- Skip this step
+- Note: MCP server will need to re-authenticate periodically
+
+## Step 9: Deploy! (2 min)
 
 ```bash
 firebase deploy --only functions
@@ -100,7 +135,7 @@ firebase deploy --only functions
 
 Wait for deployment (~1-2 minutes).
 
-## Step 9: Test (1 min)
+## Step 10: Test (1 min)
 
 You'll see your function URL:
 ```
@@ -137,7 +172,7 @@ Should return:
 }
 ```
 
-## Step 10: Update iOS Shortcut
+## Step 11: Update iOS Shortcut
 
 In your iOS Shortcut, change the URL from:
 ```

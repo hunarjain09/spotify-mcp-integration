@@ -43,10 +43,26 @@ app.add_middleware(
 
 # Firestore client for persistent storage (initialized lazily)
 _firestore_client = None
+_firestore_enabled = None
 
 def get_firestore_client():
-    """Get or create Firestore client."""
-    global _firestore_client
+    """
+    Get or create Firestore client.
+
+    Returns Firestore client if USE_FIRESTORE=true, otherwise None.
+    This allows explicit control over Firestore usage and storage costs.
+    """
+    global _firestore_client, _firestore_enabled
+
+    # Check if Firestore is enabled via config flag
+    if _firestore_enabled is None:
+        from config.settings import settings
+        _firestore_enabled = settings.use_firestore
+
+    if not _firestore_enabled:
+        logger.info("Firestore disabled (USE_FIRESTORE=false), using in-memory storage")
+        return None
+
     if _firestore_client is None:
         try:
             from firebase_admin import firestore, initialize_app
@@ -60,10 +76,10 @@ def get_firestore_client():
                 pass
 
             _firestore_client = firestore.client()
-            logger.info("✅ Firestore client initialized")
+            logger.info("✅ Firestore client initialized (USE_FIRESTORE=true)")
         except Exception as e:
-            logger.warning(f"Firestore not available, using in-memory storage: {e}")
-            # Fallback to in-memory for local development
+            logger.warning(f"Firestore initialization failed, using in-memory storage: {e}")
+            # Fallback to in-memory
             _firestore_client = None
 
     return _firestore_client

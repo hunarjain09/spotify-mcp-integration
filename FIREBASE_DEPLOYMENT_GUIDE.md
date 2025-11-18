@@ -12,7 +12,9 @@ iOS Shortcuts → Firebase Functions → Agent SDK → MCP Server → Spotify AP
 
 **Key Features:**
 - **Fire-and-forget**: POST returns workflow_id immediately, processing happens in background
-- **Firestore is OPTIONAL**: Works locally without it (in-memory), automatically uses Firestore in Firebase
+- **Firestore is OPTIONAL**: Controlled by `USE_FIRESTORE` flag (default: false for local, true for Firebase)
+  - `false`: In-memory storage only (no Firestore costs)
+  - `true`: Persistent storage across function instances (recommended for Firebase)
 - **Single Function**: All logic in one Firebase Function (no Cloud Run/Tasks needed)
 - **60s timeout**: Agent executor has 55s to complete before function times out
 
