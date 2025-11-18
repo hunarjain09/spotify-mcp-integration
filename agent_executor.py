@@ -36,7 +36,8 @@ async def execute_music_sync_with_agent(
     song_metadata: SongMetadata,
     playlist_id: str,
     user_id: str = "anonymous",
-    use_ai_disambiguation: bool = True
+    use_ai_disambiguation: bool = True,
+    timeout_seconds: int = 55  # Default to 55s to stay under 60s Firebase limit
 ) -> AgentExecutionResult:
     """
     Execute music sync using Claude Agent SDK.
@@ -52,6 +53,7 @@ async def execute_music_sync_with_agent(
         playlist_id: Target Spotify playlist ID
         user_id: User identifier
         use_ai_disambiguation: Whether to use AI for ambiguous matches
+        timeout_seconds: Maximum execution time in seconds (default 55s for Firebase)
 
     Returns:
         AgentExecutionResult with success status and details
@@ -59,7 +61,7 @@ async def execute_music_sync_with_agent(
     import time
     start_time = time.time()
 
-    logger.info(f"Starting agent-based sync for: {song_metadata}")
+    logger.info(f"Starting agent-based sync for: {song_metadata} (timeout: {timeout_seconds}s)")
 
     # Configure Claude Agent SDK
     options = ClaudeAgentOptions(
@@ -141,9 +143,20 @@ Begin the search now."""
             # Send the sync request to Claude
             await client.query(prompt)
 
-            # Collect Claude's response
+            # Collect Claude's response with timeout
             full_response = []
             async for message in client.receive_response():
+                # Check timeout
+                elapsed = time.time() - start_time
+                if elapsed > timeout_seconds:
+                    logger.warning(f"Execution timeout after {elapsed:.1f}s")
+                    return AgentExecutionResult(
+                        success=False,
+                        message=f"Operation timed out after {timeout_seconds}s",
+                        error=f"Timeout: execution exceeded {timeout_seconds} seconds",
+                        execution_time_seconds=elapsed
+                    )
+
                 if hasattr(message, 'content'):
                     for block in message.content:
                         if hasattr(block, 'text'):

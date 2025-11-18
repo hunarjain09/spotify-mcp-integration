@@ -129,6 +129,44 @@ The project has evolved through multiple architectures to arrive at the current 
 - See [PERFORMANCE_TEST_RESULTS.md](./PERFORMANCE_TEST_RESULTS.md) for detailed analysis
 - See [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) for architecture comparison
 
+## Deployment Options
+
+You can run this project in two ways:
+
+### 🏠 Local Development (Quick Start)
+Run the FastAPI server on your local machine (Mac/PC). Best for development and testing.
+
+**Pros:**
+- ✅ Quick setup (10 minutes)
+- ✅ No cloud costs
+- ✅ Easy debugging
+- ✅ Full control
+
+**Cons:**
+- ⚠️ Computer must be running
+- ⚠️ Only works on local network
+
+👉 **[Local Setup Guide](#quick-start)** (below)
+
+### ☁️ Firebase Functions (Production)
+Deploy to Google Cloud Firebase Functions for serverless, always-available sync.
+
+**Pros:**
+- ✅ Always available (24/7)
+- ✅ Works anywhere (cellular + WiFi)
+- ✅ Auto-scaling
+- ✅ Free tier (2M requests/month)
+- ✅ No server maintenance
+
+**Cons:**
+- ⚠️ 60-second timeout limit
+- ⚠️ Requires Google Cloud account
+
+👉 **[Firebase Quick Start Guide](./FIREBASE_QUICKSTART.md)** (10 minutes)
+👉 **[Firebase Full Guide](./FIREBASE_DEPLOYMENT_GUIDE.md)** (detailed)
+
+---
+
 ## Quick Start
 
 ### Prerequisites

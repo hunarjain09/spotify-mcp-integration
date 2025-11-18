@@ -3,6 +3,8 @@ FastAPI application with Agent SDK integration.
 
 This version uses Claude Agent SDK instead of Temporal/standalone executor.
 Claude intelligently orchestrates Spotify MCP tools.
+
+Supports both local development (in-memory) and Firebase Functions (Firestore).
 """
 import asyncio
 import logging
@@ -39,7 +41,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory storage for execution results (for status endpoint)
+# Firestore client for persistent storage (initialized lazily)
+_firestore_client = None
+
+def get_firestore_client():
+    """Get or create Firestore client."""
+    global _firestore_client
+    if _firestore_client is None:
+        try:
+            from firebase_admin import firestore, initialize_app
+            import firebase_admin
+
+            # Initialize Firebase Admin if not already initialized
+            try:
+                initialize_app()
+            except ValueError:
+                # Already initialized
+                pass
+
+            _firestore_client = firestore.client()
+            logger.info("✅ Firestore client initialized")
+        except Exception as e:
+            logger.warning(f"Firestore not available, using in-memory storage: {e}")
+            # Fallback to in-memory for local development
+            _firestore_client = None
+
+    return _firestore_client
+
+# In-memory storage as fallback (for local development)
 execution_results: dict[str, AgentExecutionResult] = {}
 
 
@@ -110,6 +139,8 @@ async def _execute_sync_task(
     use_ai_disambiguation: bool
 ):
     """Execute the sync task in background and cache results."""
+    db = get_firestore_client()
+
     try:
         logger.info(f"[{workflow_id}] Calling Agent SDK...")
 
@@ -120,8 +151,30 @@ async def _execute_sync_task(
             use_ai_disambiguation=use_ai_disambiguation
         )
 
-        # Cache result for status endpoint
-        execution_results[workflow_id] = result
+        # Store result in Firestore (if available) or in-memory
+        if db:
+            try:
+                db.collection('sync_results').document(workflow_id).set({
+                    'workflow_id': workflow_id,
+                    'success': result.success,
+                    'message': result.message,
+                    'matched_track_uri': result.matched_track_uri,
+                    'matched_track_name': result.matched_track_name,
+                    'matched_artist': result.matched_artist,
+                    'confidence_score': result.confidence_score,
+                    'match_method': result.match_method,
+                    'execution_time_seconds': result.execution_time_seconds,
+                    'agent_reasoning': result.agent_reasoning,
+                    'error': result.error,
+                    'timestamp': firestore.SERVER_TIMESTAMP
+                })
+                logger.info(f"[{workflow_id}] Stored result in Firestore")
+            except Exception as e:
+                logger.warning(f"[{workflow_id}] Failed to store in Firestore: {e}")
+                execution_results[workflow_id] = result
+        else:
+            # Fallback to in-memory
+            execution_results[workflow_id] = result
 
         if result.success:
             logger.info(
@@ -134,11 +187,25 @@ async def _execute_sync_task(
 
     except Exception as e:
         logger.error(f"[{workflow_id}] Exception during agent execution: {e}", exc_info=True)
-        execution_results[workflow_id] = AgentExecutionResult(
+        error_result = AgentExecutionResult(
             success=False,
             message=f"Exception: {str(e)}",
             error=str(e)
         )
+
+        if db:
+            try:
+                db.collection('sync_results').document(workflow_id).set({
+                    'workflow_id': workflow_id,
+                    'success': False,
+                    'error': str(e),
+                    'message': f"Exception: {str(e)}",
+                    'timestamp': firestore.SERVER_TIMESTAMP
+                })
+            except:
+                execution_results[workflow_id] = error_result
+        else:
+            execution_results[workflow_id] = error_result
 
 
 @app.get("/api/v1/sync/{workflow_id}", response_model=WorkflowStatusResponse)
@@ -154,9 +221,36 @@ async def get_sync_status(workflow_id: str) -> WorkflowStatusResponse:
     """
     from datetime import datetime
 
-    # Check if we have results for this workflow
-    if workflow_id not in execution_results:
-        # Still running or doesn't exist
+    db = get_firestore_client()
+
+    # Try to get result from Firestore first
+    result = None
+    if db:
+        try:
+            doc = db.collection('sync_results').document(workflow_id).get()
+            if doc.exists:
+                data = doc.to_dict()
+                result = AgentExecutionResult(
+                    success=data.get('success', False),
+                    message=data.get('message', ''),
+                    matched_track_uri=data.get('matched_track_uri'),
+                    matched_track_name=data.get('matched_track_name'),
+                    matched_artist=data.get('matched_artist'),
+                    confidence_score=data.get('confidence_score'),
+                    match_method=data.get('match_method'),
+                    execution_time_seconds=data.get('execution_time_seconds'),
+                    agent_reasoning=data.get('agent_reasoning'),
+                    error=data.get('error')
+                )
+        except Exception as e:
+            logger.warning(f"Failed to read from Firestore: {e}")
+
+    # Fallback to in-memory storage
+    if result is None and workflow_id in execution_results:
+        result = execution_results[workflow_id]
+
+    # If no result found, return running status
+    if result is None:
         from api.models import WorkflowProgressInfo
         return WorkflowStatusResponse(
             workflow_id=workflow_id,
@@ -170,8 +264,6 @@ async def get_sync_status(workflow_id: str) -> WorkflowStatusResponse:
                 elapsed_seconds=0.0
             )
         )
-
-    result = execution_results[workflow_id]
 
     if result.success:
         from api.models import WorkflowResultInfo
