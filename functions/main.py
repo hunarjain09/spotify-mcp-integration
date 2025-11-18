@@ -42,13 +42,76 @@ def spotify_sync(req: https_fn.Request) -> https_fn.Response:
     - GET /api/v1/sync/{workflow_id} - Get status
     - GET /health - Health check
     """
-    # Use Mangum to adapt FastAPI to Firebase Functions
-    from mangum import Mangum
+    import asyncio
+    import json
+    import logging
 
-    handler = Mangum(fastapi_app, lifespan="off")
+    logger = logging.getLogger(__name__)
 
-    # Convert Firebase Functions request to ASGI
-    return handler(req)
+    try:
+        # Create ASGI request
+        asgi_request = {
+            "type": "http",
+            "method": req.method,
+            "path": req.path,
+            "headers": [
+                (k.lower().encode(), v.encode()) for k, v in req.headers.items()
+            ],
+            "query_string": req.query_string or b"",
+            "body": req.get_data() or b"",
+        }
+
+        # Async function to receive request body
+        async def receive():
+            return {
+                "type": "http.request",
+                "body": req.get_data() or b"",
+                "more_body": False,
+            }
+
+        # Variables to collect response data
+        response_body = []
+        response_headers = []
+        response_status = 200
+
+        # Async function to send response
+        async def send(message):
+            nonlocal response_body, response_headers, response_status
+            if message["type"] == "http.response.start":
+                response_status = message.get("status", 200)
+                response_headers = message.get("headers", [])
+            elif message["type"] == "http.response.body":
+                response_body.append(message.get("body", b""))
+
+        # Run the ASGI app in an asyncio loop
+        async def run_asgi():
+            await fastapi_app(asgi_request, receive, send)
+
+        asyncio.run(run_asgi())
+
+        # Combine response body
+        full_body = b"".join(response_body)
+
+        # Convert headers to dict for `https_fn.Response`
+        headers_dict = {
+            k.decode() if isinstance(k, bytes) else k: v.decode() if isinstance(v, bytes) else v
+            for k, v in response_headers
+        }
+
+        # Create Firebase Functions response
+        return https_fn.Response(
+            response=full_body,
+            status=response_status,
+            headers=headers_dict,
+        )
+
+    except Exception as e:
+        logger.error(f"Error processing request: {str(e)}")
+        return https_fn.Response(
+            response=json.dumps({"error": "Internal Server Error"}),
+            status=500,
+            headers={"Content-Type": "application/json"},
+        )
 
 
 @https_fn.on_request()

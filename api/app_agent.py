@@ -137,16 +137,32 @@ async def sync_song(request: SyncSongRequest) -> SyncSongResponse:
         album=request.album
     )
 
-    # Execute in background task (fire-and-forget)
-    asyncio.create_task(
-        _execute_sync_task(
-            workflow_id=workflow_id,
-            song_metadata=song_metadata,
-            playlist_id=request.playlist_id,
-            user_id=user_id,
-            use_ai_disambiguation=request.use_ai_disambiguation
-        )
-    )
+    # Execute sync task in background thread (continues after HTTP response)
+    # Using thread instead of asyncio.create_task() because Firebase Functions
+    # may terminate async tasks after HTTP response, but threads continue
+    import threading
+
+    def run_sync_in_thread():
+        """Wrapper to run async task in thread."""
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(_execute_sync_task(
+                workflow_id=workflow_id,
+                song_metadata=song_metadata,
+                playlist_id=request.playlist_id,
+                user_id=user_id,
+                use_ai_disambiguation=request.use_ai_disambiguation
+            ))
+        finally:
+            loop.close()
+
+    # Start background thread
+    thread = threading.Thread(target=run_sync_in_thread, daemon=False)
+    thread.start()
+
+    logger.info(f"[{workflow_id}] Background thread started for agent processing")
 
     # Check if Firestore is enabled for status URL
     from config.settings import settings
