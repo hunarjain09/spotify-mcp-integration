@@ -68,3 +68,12 @@ volumes/
 
 # MCP
 .mcp/
+
+# Node.js
+node_modules/
+
+# Firebase Emulator
+*-debug.log
+firebase-debug*.log
+.firebase/
+ui-debug.log

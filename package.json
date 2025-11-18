@@ -1,0 +1,19 @@
+{
+  "name": "spotify-mcp-integration",
+  "version": "1.0.0",
+  "description": "Seamlessly sync songs from Apple Music to Spotify playlists using iOS Shortcuts. This system uses **Anthropic's Agent SDK** with MCP (Model Context Protocol) for intelligent, AI-powered music synchronization.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "firebase-tools": "^14.25.0"
+  }
+}
