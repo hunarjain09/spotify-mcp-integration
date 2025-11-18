@@ -61,7 +61,7 @@ class SyncSongResponse(BaseModel):
     workflow_id: str = Field(..., description="Unique workflow identifier")
     status: str = Field(..., description="Workflow status (e.g., 'accepted')")
     message: str = Field(..., description="Human-readable status message")
-    status_url: str = Field(..., description="URL to check workflow status")
+    status_url: Optional[str] = Field(None, description="URL to check workflow status (only available when USE_FIRESTORE=true)")
 
     model_config = {
         "json_schema_extra": {

@@ -91,8 +91,17 @@ execution_results: dict[str, AgentExecutionResult] = {}
 @app.on_event("startup")
 async def startup_event():
     """Initialize on startup."""
+    from config.settings import settings
+
     logger.info("🚀 Starting FastAPI server with Claude Agent SDK integration")
     logger.info("🎵 Ready to sync songs intelligently using AI!")
+
+    # Log storage mode
+    if settings.use_firestore:
+        logger.info("📊 Storage: Firestore enabled (persistent across instances)")
+    else:
+        logger.info("💾 Storage: In-memory only (fire-and-forget mode)")
+        logger.info("⚠️  Status endpoint may not find results across different function instances")
 
 
 @app.post("/api/v1/sync", response_model=SyncSongResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -139,11 +148,15 @@ async def sync_song(request: SyncSongRequest) -> SyncSongResponse:
         )
     )
 
+    # Check if Firestore is enabled for status URL
+    from config.settings import settings
+    status_url = f"/api/v1/sync/{workflow_id}" if settings.use_firestore else None
+
     return SyncSongResponse(
         workflow_id=workflow_id,
         status="accepted",
         message=f"Agent is searching for '{request.track_name}' by {request.artist}...",
-        status_url=f"/api/v1/sync/{workflow_id}",
+        status_url=status_url,
     )
 
 
@@ -229,6 +242,9 @@ async def get_sync_status(workflow_id: str) -> WorkflowStatusResponse:
     """
     Get status of a sync operation.
 
+    Note: This endpoint requires USE_FIRESTORE=true to work reliably in production.
+    With USE_FIRESTORE=false, results are only available in the same function instance.
+
     Args:
         workflow_id: The workflow ID returned from POST /api/v1/sync
 
@@ -236,6 +252,20 @@ async def get_sync_status(workflow_id: str) -> WorkflowStatusResponse:
         Current workflow status and results
     """
     from datetime import datetime
+    from config.settings import settings
+
+    # If Firestore is disabled, return error in production
+    if not settings.use_firestore:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail={
+                "error": "status_endpoint_disabled",
+                "message": "Status endpoint is disabled when USE_FIRESTORE=false. "
+                          "This is a fire-and-forget deployment with no persistent storage. "
+                          "Enable USE_FIRESTORE=true to use status checks.",
+                "workflow_id": workflow_id
+            }
+        )
 
     db = get_firestore_client()
 
