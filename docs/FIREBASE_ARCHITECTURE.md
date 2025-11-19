@@ -979,6 +979,208 @@ timeout_seconds: int = 55  # 5s buffer
 
 ---
 
+## Spotify OAuth Cache Handling in Firebase Functions
+
+### The Problem
+
+Firebase Functions have **ephemeral filesystems** - any files created during execution are lost when the function goes cold. This creates a problem for Spotify OAuth:
+
+**Traditional Approach (Doesn't Work in Firebase):**
+```python
+# ❌ File-based cache - gets wiped between invocations
+spotify_client = spotipy.Spotify(
+    auth_manager=SpotifyOAuth(
+        cache_path=".cache-spotify",  # Lost when function goes cold!
+        # ... other config
+    )
+)
+```
+
+**What happens:**
+1. First request: Spotify OAuth creates `.cache-spotify` with tokens
+2. Function goes cold (5-15 minutes of inactivity)
+3. Next request: `.cache-spotify` is gone → OAuth flow fails
+
+### The Solution: Custom Cache Handlers
+
+We implemented **two custom cache handlers** based on your deployment configuration:
+
+#### 1. EnvironmentCacheHandler (USE_FIRESTORE=false)
+
+**Purpose:** Zero storage costs using environment variables
+
+**How it works:**
+```python
+class EnvironmentCacheHandler(CacheHandler):
+    def __init__(self):
+        # Read refresh token from environment variable
+        refresh_token = os.getenv("SPOTIFY_REFRESH_TOKEN")
+
+        # Create minimal token_info
+        self.token_info = {
+            "refresh_token": refresh_token,
+            "access_token": None,  # Will be refreshed on first use
+            "expires_at": 0,  # Force immediate refresh
+        }
+
+    def get_cached_token(self) -> Optional[dict]:
+        return self.token_info  # Return in-memory cache
+
+    def save_token_to_cache(self, token_info: dict) -> None:
+        self.token_info = token_info  # Update in-memory cache
+```
+
+**Flow:**
+```
+Function Invocation #1 (Cold Start)
+├─ Read SPOTIFY_REFRESH_TOKEN from environment
+├─ Create token_info with refresh_token
+├─ SpotifyOAuth sees expires_at=0 → refreshes access token
+├─ New access_token cached in-memory
+└─ Process request (works!)
+
+Function Invocation #2 (Warm)
+├─ In-memory cache still has access_token
+├─ SpotifyOAuth checks expiry → still valid
+└─ Process request (fast!)
+
+Function Goes Cold (15 minutes later)
+└─ In-memory cache is wiped
+
+Function Invocation #3 (Cold Start)
+├─ Read SPOTIFY_REFRESH_TOKEN from environment again
+├─ SpotifyOAuth refreshes access token
+└─ Process request (works!)
+```
+
+**Cost:** $0 (only environment variable)
+
+#### 2. FirestoreCacheHandler (USE_FIRESTORE=true)
+
+**Purpose:** Persistent cache shared across all function instances
+
+**How it works:**
+```python
+class FirestoreCacheHandler(CacheHandler):
+    def __init__(self, user_id: str = "default"):
+        self.db = firestore.client()
+        self.doc_id = f"user_{user_id}"
+
+    def get_cached_token(self) -> Optional[dict]:
+        doc = self.db.collection('spotify_tokens').document(self.doc_id).get()
+        return doc.to_dict() if doc.exists else None
+
+    def save_token_to_cache(self, token_info: dict) -> None:
+        self.db.collection('spotify_tokens').document(self.doc_id).set(token_info)
+```
+
+**Flow:**
+```
+Function Invocation #1 (Cold Start, Instance A)
+├─ Read token from Firestore (empty on first run)
+├─ Use SPOTIFY_REFRESH_TOKEN from environment (fallback)
+├─ SpotifyOAuth refreshes access token
+├─ Save to Firestore
+└─ Process request
+
+Function Invocation #2 (Cold Start, Instance B - different server!)
+├─ Read token from Firestore (has valid access_token from Instance A)
+├─ SpotifyOAuth uses cached access_token
+└─ Process request (no refresh needed!)
+```
+
+**Benefits:**
+- Token shared across ALL function instances
+- Fewer token refreshes = faster requests
+- Works for multi-user setups
+
+**Cost:** ~$0.18/million operations (negligible for personal use)
+
+### Getting Your Refresh Token
+
+The refresh token is extracted from your local `.cache-spotify` file:
+
+```bash
+# Step 1: Authenticate locally (creates .cache-spotify)
+cd /path/to/spotify-mcp-integration
+source venv/bin/activate
+python mcp_server/spotify_server.py
+# Browser opens for OAuth → Log in → Success!
+
+# Step 2: Extract refresh token
+cat .cache-spotify | python -m json.tool | grep refresh_token
+
+# Output:
+# "refresh_token": "AQAaeB8LyL9at8noI6-cAtbS3S9Ui6138OJhO..."
+
+# Step 3: Copy to .env
+echo 'SPOTIFY_REFRESH_TOKEN=AQAaeB8LyL...' >> functions/.env
+```
+
+### Integration in spotify_server.py
+
+The MCP server uses the appropriate cache handler:
+
+```python
+from mcp_server.spotify_cache_handler import get_cache_handler
+
+# Determine cache handler based on USE_FIRESTORE flag
+use_firestore = os.getenv("USE_FIRESTORE", "false").lower() == "true"
+cache_handler = get_cache_handler(use_firestore=use_firestore, user_id="default")
+
+spotify_client = spotipy.Spotify(
+    auth_manager=SpotifyOAuth(
+        client_id=os.getenv("SPOTIFY_CLIENT_ID"),
+        client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
+        redirect_uri=os.getenv("SPOTIFY_REDIRECT_URI"),
+        scope="playlist-modify-public playlist-modify-private playlist-read-private",
+        cache_handler=cache_handler,  # ✅ Custom cache handler
+    )
+)
+```
+
+### Token Lifecycle
+
+**Refresh Token:**
+- Long-lived (doesn't expire unless revoked)
+- Used to obtain new access tokens
+- Stored in: Environment variable or Firestore (as fallback)
+
+**Access Token:**
+- Short-lived (expires in 1 hour)
+- Used for Spotify API requests
+- Cached in: Memory (EnvironmentCacheHandler) or Firestore (FirestoreCacheHandler)
+
+**Typical Flow:**
+```
+Request 1:  refresh_token → [Spotify API] → access_token (expires at T+60min)
+Request 2:  Use cached access_token (T+5min, still valid)
+Request 3:  Use cached access_token (T+30min, still valid)
+Request 4:  access_token expired (T+61min) → Use refresh_token → New access_token
+```
+
+### Key Files
+
+- `mcp_server/spotify_cache_handler.py` → Custom cache handlers
+- `mcp_server/spotify_server.py` → MCP server with SpotifyOAuth
+- `functions/.env` → Contains SPOTIFY_REFRESH_TOKEN
+- `.cache-spotify` → Local file (not deployed, used to extract refresh_token)
+
+### Security Notes
+
+⚠️ **Refresh tokens are sensitive!**
+- They provide long-term access to your Spotify account
+- Store them securely (use Secret Manager in production)
+- Never commit `.env` files to git
+- Rotate tokens if compromised
+
+✅ **Best practices:**
+- Local dev: Use `.env` file (already in `.gitignore`)
+- Production: Use Firebase Secret Manager
+- Multi-user: Store per-user tokens in Firestore with encryption
+
+---
+
 ## Next Steps
 
 1. **Test Locally** - Use Firebase emulator
@@ -990,3 +1192,4 @@ For questions or issues, see:
 - [Firebase Functions Docs](https://firebase.google.com/docs/functions)
 - [FastAPI ASGI Spec](https://asgi.readthedocs.io/)
 - [Threading Docs](https://docs.python.org/3/library/threading.html)
+- [Spotipy OAuth Docs](https://spotipy.readthedocs.io/en/2.24.0/#authorization-code-flow)

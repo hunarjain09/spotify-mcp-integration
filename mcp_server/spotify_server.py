@@ -222,13 +222,22 @@ async def main():
 
     # Initialize Spotify client with OAuth
     try:
+        # Import custom cache handler
+        from mcp_server.spotify_cache_handler import get_cache_handler
+
+        # Determine cache handler based on environment
+        # USE_FIRESTORE=true -> Firestore-backed (persistent across invocations)
+        # USE_FIRESTORE=false -> Environment-based (from SPOTIFY_REFRESH_TOKEN)
+        use_firestore = os.getenv("USE_FIRESTORE", "false").lower() == "true"
+        cache_handler = get_cache_handler(use_firestore=use_firestore, user_id="default")
+
         spotify_client = spotipy.Spotify(
             auth_manager=SpotifyOAuth(
                 client_id=os.getenv("SPOTIFY_CLIENT_ID"),
                 client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
                 redirect_uri=os.getenv("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8888/callback"),
                 scope="playlist-modify-public playlist-modify-private playlist-read-private",
-                cache_path=".cache-spotify",
+                cache_handler=cache_handler,
             )
         )
 

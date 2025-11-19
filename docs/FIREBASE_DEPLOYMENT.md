@@ -309,6 +309,11 @@ def spotify_sync(req: https_fn.Request) -> https_fn.Response:
    SPOTIFY_CLIENT_SECRET=your_spotify_client_secret_here
    SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
 
+   # Spotify OAuth Refresh Token (CRITICAL for Firebase Functions)
+   # This allows automatic authentication without manual OAuth flow
+   # See "Getting Spotify Refresh Token" section below for instructions
+   SPOTIFY_REFRESH_TOKEN=your_refresh_token_here
+
    # Default playlist for syncing
    DEFAULT_PLAYLIST_ID=your_22_character_playlist_id
 
@@ -374,6 +379,42 @@ def spotify_sync(req: https_fn.Request) -> https_fn.Response:
    5. That's your DEFAULT_PLAYLIST_ID
    ```
 
+   **Spotify Refresh Token (CRITICAL for Firebase Functions):**
+
+   Firebase Functions have ephemeral filesystems, so the normal `.cache-spotify` file won't persist.
+   You need to extract the refresh token and provide it via environment variable.
+
+   ```bash
+   # Step 1: Run local authentication (if you haven't already)
+   cd /path/to/spotify-mcp-integration
+   source venv/bin/activate
+   python mcp_server/spotify_server.py
+
+   # This will open a browser for OAuth authentication
+   # After successful authentication, a .cache-spotify file is created
+
+   # Step 2: Extract refresh token from cache file
+   cat .cache-spotify | python -m json.tool | grep refresh_token
+
+   # Example output:
+   # "refresh_token": "AQAaeB8LyL9at8noI6-cAtbS3S9Ui6138OJhO..."
+
+   # Step 3: Copy the refresh_token value (without quotes)
+   # Step 4: Add to functions/.env as SPOTIFY_REFRESH_TOKEN
+   ```
+
+   **How it works:**
+   - The refresh token is long-lived and doesn't expire (unless revoked)
+   - On first request, the custom cache handler uses this token to get a fresh access token
+   - Access tokens are cached in-memory for the function's lifetime (~5-15 minutes)
+   - When the function goes cold, the next invocation re-authenticates using the refresh token
+
+   **If you lose the refresh token:**
+   - Delete `.cache-spotify` in your local repo
+   - Run `python mcp_server/spotify_server.py` to re-authenticate
+   - Extract the new refresh_token from `.cache-spotify`
+   - Update your environment variables
+
 **⚠️ Important:** The `.env` file is deployed with your function. For better security, use Secret Manager (Option 2).
 
 ### Option 2: Using Firebase Secret Manager (More Secure, Recommended for Production)
@@ -386,6 +427,10 @@ def spotify_sync(req: https_fn.Request) -> https_fn.Response:
 
    npx firebase functions:secrets:set SPOTIFY_CLIENT_SECRET
    # Paste your client secret when prompted, then Enter
+
+   # Spotify refresh token (CRITICAL - see above for how to extract)
+   npx firebase functions:secrets:set SPOTIFY_REFRESH_TOKEN
+   # Paste your refresh token when prompted, then Enter
 
    # Anthropic API key
    npx firebase functions:secrets:set ANTHROPIC_API_KEY
@@ -400,11 +445,17 @@ def spotify_sync(req: https_fn.Request) -> https_fn.Response:
    # Define secrets
    spotify_client_id = SecretParam("SPOTIFY_CLIENT_ID")
    spotify_client_secret = SecretParam("SPOTIFY_CLIENT_SECRET")
+   spotify_refresh_token = SecretParam("SPOTIFY_REFRESH_TOKEN")
    anthropic_api_key = SecretParam("ANTHROPIC_API_KEY")
 
    # Update function decorator
    @https_fn.on_request(
-       secrets=[spotify_client_id, spotify_client_secret, anthropic_api_key],
+       secrets=[
+           spotify_client_id,
+           spotify_client_secret,
+           spotify_refresh_token,
+           anthropic_api_key
+       ],
        # ... other options
    )
    def spotify_sync(req):
