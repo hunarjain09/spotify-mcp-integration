@@ -68,3 +68,10 @@ volumes/
 
 # MCP
 .mcp/
+
+# Load Testing
+load_tests/load_test_results/
+load_tests/load_test_results_*.json
+
+# Node modules
+node_modules/

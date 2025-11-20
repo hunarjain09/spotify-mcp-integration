@@ -29,7 +29,7 @@ mkdir -p "$RESULTS_DIR"
 # Function to check if API is running
 check_api() {
     echo -e "${YELLOW}Checking if API is running...${NC}"
-    if curl -s "$API_HOST/api/v1/health" > /dev/null 2>&1; then
+    if curl -s "$API_HOST/health" > /dev/null 2>&1; then
         echo -e "${GREEN}✓ API is running${NC}"
         return 0
     else
@@ -45,7 +45,7 @@ run_test() {
     local users=$2
     local spawn_rate=$3
     local duration=$4
-    local user_class=${5:-SpotifyMCPUser}
+    local locustfile=$5
 
     echo ""
     echo -e "${GREEN}======================================${NC}"
@@ -54,7 +54,7 @@ run_test() {
     echo "Users: $users"
     echo "Spawn Rate: $spawn_rate per second"
     echo "Duration: $duration seconds"
-    echo "User Class: $user_class"
+    echo "Locustfile: $locustfile"
     echo ""
 
     local output_dir="$RESULTS_DIR/${test_name}_$(date +%Y%m%d_%H%M%S)"
@@ -62,7 +62,7 @@ run_test() {
 
     # Run locust in headless mode
     locust \
-        -f locustfile.py \
+        -f "$locustfile" \
         --headless \
         --users "$users" \
         --spawn-rate "$spawn_rate" \
@@ -70,7 +70,6 @@ run_test() {
         --host "$API_HOST" \
         --html "$output_dir/report.html" \
         --csv "$output_dir/stats" \
-        --user "$user_class" \
         2>&1 | tee "$output_dir/console.log"
 
     echo ""
@@ -190,31 +189,31 @@ main() {
             ;;
         2)
             measure_baseline
-            run_test "light_load" 5 1 60 "LightLoadUser"
+            run_test "light_load" 5 1 60 "light_load_locustfile.py"
             ;;
         3)
             measure_baseline
-            run_test "medium_load" 20 2 120 "MediumLoadUser"
+            run_test "medium_load" 20 2 120 "medium_load_locustfile.py"
             ;;
         4)
             measure_baseline
-            run_test "heavy_load" 50 5 120 "HeavyLoadUser"
+            run_test "heavy_load" 50 5 120 "heavy_load_locustfile.py"
             ;;
         5)
             measure_baseline
-            run_test "light_load" 5 1 60 "LightLoadUser"
+            run_test "light_load" 5 1 60 "light_load_locustfile.py"
             sleep 10
-            run_test "medium_load" 20 2 120 "MediumLoadUser"
+            run_test "medium_load" 20 2 120 "medium_load_locustfile.py"
             sleep 10
-            run_test "heavy_load" 50 5 120 "HeavyLoadUser"
+            run_test "heavy_load" 50 5 120 "heavy_load_locustfile.py"
             ;;
         6)
             measure_baseline
-            run_test "light_load" 5 1 60 "LightLoadUser"
+            run_test "light_load" 5 1 60 "light_load_locustfile.py"
             sleep 10
-            run_test "medium_load" 20 2 120 "MediumLoadUser"
+            run_test "medium_load" 20 2 120 "medium_load_locustfile.py"
             sleep 10
-            run_test "heavy_load" 50 5 120 "HeavyLoadUser"
+            run_test "heavy_load" 50 5 120 "heavy_load_locustfile.py"
             ;;
         *)
             echo "Invalid option"
