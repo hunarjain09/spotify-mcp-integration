@@ -412,6 +412,69 @@ See [PERFORMANCE_TEST_RESULTS.md](./PERFORMANCE_TEST_RESULTS.md) for:
 - Agent execution breakdown
 - Performance optimization options
 
+## Load Testing for Raspberry Pi Deployment
+
+Want to host this on a Raspberry Pi? Run load tests to determine CPU and memory requirements!
+
+### Quick Start
+
+```bash
+# Install load testing dependencies
+uv sync --extra loadtest
+
+# Start the API server (in separate terminal)
+./run.sh
+
+# Run load tests
+cd load_tests
+./run_load_tests.sh
+
+# Generate Raspberry Pi recommendations
+python3 generate_raspberry_pi_report.py
+```
+
+### What Gets Tested
+
+The load test suite simulates real-world usage:
+- **Baseline** - Idle resource usage
+- **Light load** - 5 concurrent users (typical home use)
+- **Medium load** - 20 concurrent users
+- **Heavy load** - 50+ concurrent users (stress test)
+
+### Results
+
+After testing, you'll get:
+- Peak CPU and memory usage
+- Specific Raspberry Pi model recommendations
+- Cost vs performance analysis
+- Headroom calculations
+
+### Example Recommendations
+
+```
+🎯 RECOMMENDED MODELS:
+
+#1 - Raspberry Pi 5 (8GB) [$80]
+  • 8192 MB RAM with 6500 MB headroom
+  • 4 cores @ 2.4 GHz
+  • Best for heavy loads
+
+#2 - Raspberry Pi 4 (4GB) [$55]
+  • 4096 MB RAM with 2500 MB headroom
+  • 4 cores @ 1.8 GHz
+  • Good for regular use
+```
+
+### Documentation
+
+See [load_tests/QUICKSTART.md](./load_tests/QUICKSTART.md) for:
+- Step-by-step instructions
+- Test configuration options
+- Result interpretation
+- Troubleshooting tips
+
+Full documentation: [load_tests/README.md](./load_tests/README.md)
+
 ## Project Structure
 
 ```
